@@ -32,11 +32,17 @@ typedef struct NodeHead {
         int priority;
 } NodeHead;
 
+typedef struct ProcessList {
+        Process **procs;
+        int size;
+} ProcessList;
+
 typedef struct Process{
         int pid;
         int ppid;
         int priority;  // 0=alta, 1=baixa
         int status;  //0=Pronto, 1=Rodando, 2=Bloqueado, 3=Terminado 
+        int arrival_time; // quando o proc chega
         int duration;  //tempo de duracao do proc
         int total_exec;  // tempo total de execucao ate o momento
         int activation_time;  //instante de ativacao do proc
@@ -73,5 +79,7 @@ Process *create_process(int pid, int ppid, int duration, int activation_time, in
 NodeHead *create_node_head();
 ProcessNode *create_process_node(Process *proc);
 ProcessIO *create_IO_proc(int type, int activation_time);
+int node_head_enqueue(NodeHead *queue, Process *proc);
+Process *node_head_dequeue(NodeHead *queue);
 
 #endif

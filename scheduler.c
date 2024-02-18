@@ -81,7 +81,7 @@ ProcessIO *check_IO_request(Process *proc) {
                 return NULL;
 }
 
-RoundRobin round_robin(int q, int num_of_IOs) {
+RoundRobin round_robin_initialize(int q, int num_of_IOs) {
         // Falta implementar
         RoundRobin rr;
         rr.quantum = q;
@@ -97,4 +97,77 @@ RoundRobin round_robin(int q, int num_of_IOs) {
         rr.IO_queue[2] = create_node_head(); //Printer
 
         return rr;
+}
+
+int rr_process_add(RoundRobin *rr, ProcessList *process_list) {
+        if(process_list == NULL) {
+                fprintf(stderr, "Lista de processos para entrar esta vazia\n");
+                return 1;
+        }
+
+        for(int i=0; i<process_list->size; ++i) {
+                if(process_list->procs[i] != NULL && (process_list->procs[i]->arrival_time == rr->time_elapsed)) {
+                        printf("Processo com PID: %d sendo adicionado ao escalonador\n", process_list->procs[i]->pid);
+                        node_head_enqueue(rr->high_priority, process_list->procs[i]); // sempre que um proc eh adicionado ele deve entrar na fila de alta prioridade
+                }
+        }
+        return 0;
+}
+
+void checkIO(RoundRobin *rr) {
+        for(int i=0; i<3; ++i) {
+                if(rr->IO_queue[i]->front != NULL) {
+                        rr->IO_queue[i]->front->queue_time++;
+                        if (rr->IO_queue[i]->front->queue_time == rr->IO_queue[i]->priority) {
+                                Process *tmp = node_head_dequeue(rr->IO_queue[i]);
+                                tmp->status = 0;
+                                switch (i) {
+                                        case 0:
+                                                node_head_enqueue(rr->low_priority, tmp);
+                                                break;
+                                        case 1:
+                                                node_head_enqueue(rr->high_priority, tmp);
+                                                break;
+                                        case 2:
+                                                node_head_enqueue(rr->high_priority, tmp);
+                                                break;
+                                
+                                }
+                        
+                        }
+                }
+        }
+}
+
+void rr_next_action(RoundRobin *rr, ProcessList *proc_list) {
+        ProcessIO *io_req;
+        // proc sendo executado no momento:
+        if(rr->executing_proc != NULL) {
+                io_req = check_IO_request(rr->executing_proc);
+                rr->executing_proc->remaining_time--;
+                rr->quantum++;
+        }
+
+        rr_process_add(rr, proc_list);
+        checkIO(rr);
+
+        if(rr->executing_proc == NULL) {
+                printf("Nada sendo executado no momento");
+        }
+}
+
+void rr_execute_process(RoundRobin *rr) {
+        rr->executing_proc = NULL;
+        rr->quantum = 0;
+
+        Process *proc;
+        if((proc = node_head_dequeue(rr->high_priority)) == NULL) {
+                printf("Fila de alta prioridade vazia\n");
+                if((proc = node_head_dequeue(rr->low_priority)) == NULL) {
+                        printf("Fila de baixa prioridade vazia!\n");
+                        exit(EXIT_FAILURE);
+                }
+        }
+        proc->status = 1;
+        rr->executing_proc = proc;
 }

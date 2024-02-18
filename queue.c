@@ -58,9 +58,12 @@ int node_head_enqueue(NodeHead *queue, Process *proc) {
         return 0;
 }
 
-int node_head_dequeue(NodeHead *queue) {
-        if(queue_is_empty(queue))
-                return 1;
+Process *node_head_dequeue(NodeHead *queue) {
+        // remove o primeiro elemento da fila e retorna como Process
+        if(queue_is_empty(queue)) {
+                queue->front = queue->rear = NULL;
+                return NULL;
+        }
 
         ProcessNode *tmp;
         tmp = queue->front;
@@ -68,6 +71,10 @@ int node_head_dequeue(NodeHead *queue) {
         if(queue->full_size == 1)
                 queue->rear = NULL;
         queue->full_size--;
+        if(queue_is_empty(queue)) {
+                queue->front = queue->rear = NULL;
+                return tmp->proc;
+        }
         
-        return 0;
+        return tmp->proc;
 }
