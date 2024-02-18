@@ -3,6 +3,7 @@
 
 // Declaracao de struct
 typedef struct Process Process;
+typedef struct ProcessIO ProcessIO;
 
 #define MAX_PROCS 1024
 #define MAX_IO_PROCS 1024
@@ -15,14 +16,20 @@ typedef struct Process Process;
 // fila de um processo normal
 typedef struct ProcessNode {
         Process *proc;
-        struct ProcessNode *prev_node;
         struct ProcessNode *next_node;
+        int queue_time;
 } ProcessNode;
+
+typedef struct IORequest {
+        ProcessIO **request;
+        int size;
+} IORequest;
 
 typedef struct NodeHead {
         int full_size;
-        ProcessNode *first_node;
-        ProcessNode *last_node;
+        ProcessNode *front;
+        ProcessNode *rear;
+        int priority;
 } NodeHead;
 
 typedef struct Process{
@@ -33,10 +40,11 @@ typedef struct Process{
         int duration;  //tempo de duracao do proc
         int total_exec;  // tempo total de execucao ate o momento
         int activation_time;  //instante de ativacao do proc
+        int remaining_time;  // tempo restante ate o proc finalizar
         int end_time;  // instante de finalizacao do proc
         int num_of_IOs;  // numero de IOs que o processo chama
-        NodeHead processIOs;  //Head com os IOs que o proc chama
-        int IO_return;  //instante que processo retornará do IO que está sendo executado no momento
+        IORequest *IO_req;  // IOs que o proc chama
+        int IO_return_time;  //instante que processo retornará do IO que está sendo executado no momento
 } Process;
 
 typedef struct ProcessIO{
@@ -49,7 +57,21 @@ typedef struct ProcessIO{
         int priority;  //prioridade que o processo retornara quando terminar esse IO
 } ProcessIO;
 
+typedef struct RoundRobin {
+        int quantum;
+        int time_elapsed;
+        int max_procs;
+        Process *executing_proc;
+        NodeHead *high_priority;
+        NodeHead *low_priority;
+        NodeHead **IO_queue;
+
+} RoundRobin;
+
 // Function declarations
 Process *create_process(int pid, int ppid, int duration, int activation_time, int num_of_IOs, NodeHead *processIOs);  
+NodeHead *create_node_head();
+ProcessNode *create_process_node(Process *proc);
+ProcessIO *create_IO_proc(int type, int activation_time);
 
 #endif
