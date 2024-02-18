@@ -1,2 +1,2 @@
-a.out
-scheduler.o
+*.out
+*.o

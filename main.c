@@ -6,6 +6,7 @@ int main(void) {
         //int quantum = 1;
         
 
-        create_process(4, 10);
+        //create_process(4, 10);
+
         return 0;
 }
