@@ -86,7 +86,6 @@ RoundRobin round_robin_init() {
         rr.new_procs = create_node_head(MAX_PROCS, 0);
         rr.high_priority = create_node_head(MAX_PROCS, 0);
         rr.low_priority = create_node_head(MAX_PROCS, 1);
-        rr.executing_procs = create_node_head(MAX_PROCS, 0);
         rr.IO_queue = (NodeHead **) malloc(3 * sizeof(NodeHead *));
         rr.IO_queue[0] = create_node_head(MAX_PROCS, 1); //Disk
         rr.IO_queue[1] = create_node_head(MAX_PROCS, 0); //Tape

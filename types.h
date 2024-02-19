@@ -89,7 +89,6 @@ typedef struct RoundRobin {
         ProcessIO *io_running_procs;
         //filas
         NodeHead *new_procs;
-        NodeHead *executing_procs;
         NodeHead *blocked_procs;
         NodeHead *finished_procs;
         NodeHead *high_priority;
@@ -118,6 +117,7 @@ int IOqueue_is_empty(NodeIOHead *queue);
 ProcessIO *IO_node_head_dequeue(NodeIOHead *queue);
 int rr_has_active_processes(RoundRobin *rr);
 void rr_run(RoundRobin *rr);
+void print_queues(RoundRobin *rr);
 
 
 #endif
