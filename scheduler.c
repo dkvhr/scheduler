@@ -5,10 +5,7 @@
 #include<stdbool.h>
 
 // Declaracoes de funcoes
-int rr_process_add(RoundRobin *rr, ProcessList *process_list);
-void rr_checkIO(RoundRobin *rr);
-void rr_execute_process(RoundRobin *rr);
-void rr_end_process(int pid, ProcessList *proc_list);
+void rr_run_all_before_preemption(RoundRobin *rr);
 
 Process *create_process(int pid, int ppid, unsigned duration, unsigned arrival_time, IORequest *io_req) {
         Process *new_proc;
@@ -66,194 +63,259 @@ IORequest *create_IO_request(ProcessIO **req, int size) {
         return io_req;
 }
 
-ProcessIO **create_IO_proc_ptr_ptr(int size) {
-        ProcessIO **IO_proc_ptr_ptr = (ProcessIO **) malloc(size * sizeof(ProcessIO *));
-        if (IO_proc_ptr_ptr == NULL) {
-                fprintf(stderr, "Nao foi possivel alocar memoria\n");
-                exit(EXIT_FAILURE);
+NodeHead *rr_waiting_for_io(int io_type, RoundRobin *rr) {
+        switch(io_type) {
+                case 0:
+                        return rr->IO_queue[0];
+                case 1:
+                        return rr->IO_queue[1];
+                case 2:
+                        return rr->IO_queue[2];
         }
-        return IO_proc_ptr_ptr;
-}
-
-ProcessIO *check_IO_request(Process *proc) {
-        if(proc->IO_req->size == 0) {
-                printf("Nao ha processos IO, continuando...\n");
-                return NULL;
-        }
-
-        for(int i=0; i < proc->IO_req->size; ++i) {
-                if(proc->IO_req->request[i]->activation_time == ((proc->total_exec) - (proc->remaining_time))) {
-                        printf("Temos uma IO request do tipo %d\n", proc->IO_req->request[i]->type);
-                        return proc->IO_req->request[i];
-                }
-                printf("Existe uma IO request numero %d mas ela nao deve ser executada no momento\n", i);
-        }
-                return NULL;
+        return NULL;
 }
 
 RoundRobin round_robin_init() {
-        // Falta implementar
         RoundRobin rr;
         rr.time_elapsed = 0; // tempo relativo a cada vez que o proc e executado (dps de uma preempcao ele volta pra 0)
-        rr.quantum = QUANTUM;
+        rr.quantum = 0;
         rr.max_procs = MAX_PROCS;
-        rr.executing_proc = NULL;
+        rr.active_processes = 0;
+        rr.running_procs = NULL;
         // criando filas de procs e IO
+        rr.new_procs = create_node_head(MAX_PROCS, 0);
         rr.high_priority = create_node_head(MAX_PROCS, 0);
         rr.low_priority = create_node_head(MAX_PROCS, 1);
+        rr.executing_procs = create_node_head(MAX_PROCS, 0);
         rr.IO_queue = (NodeHead **) malloc(3 * sizeof(NodeHead *));
-        rr.IO_queue[0] = create_node_head(MAX_IO_PROCS, 1); //Disk
-        rr.IO_queue[1] = create_node_head(MAX_IO_PROCS, 0); //Tape
-        rr.IO_queue[2] = create_node_head(MAX_IO_PROCS, 1); //Printer
+        rr.IO_queue[0] = create_node_head(MAX_PROCS, 1); //Disk
+        rr.IO_queue[1] = create_node_head(MAX_PROCS, 0); //Tape
+        rr.IO_queue[2] = create_node_head(MAX_PROCS, 0); //Printer
+        rr.finished_procs = create_node_head(MAX_PROCS, 0);
+        rr.IO_proc_queue = create_node_IO_head(MAX_IO_PROCS, MAX_IO_PROCS);
+
+        rr_run_all_before_preemption(&rr);
 
         return rr;
 }
 
-void rr_next_action(RoundRobin *rr, ProcessList *proc_list) {
-        ProcessIO *io_req;
-        io_req = NULL;
-        // proc sendo executado no momento:
-        if(rr->executing_proc != NULL) {
-                io_req = check_IO_request(rr->executing_proc);
-                rr->executing_proc->remaining_time--;
-                rr->time_elapsed++;
-        }
+int rr_is_running_proc(RoundRobin *rr) {
+        return rr->running_procs != NULL;
+}
 
-        rr_process_add(rr, proc_list);
-        rr_checkIO(rr);
+int rr_has_active_processes(RoundRobin *rr) {
+        return rr->active_processes > 0;
+}
 
-        if(rr->executing_proc == NULL) {
-                printf("Nada sendo executado no momento\n");
-                rr_execute_process(rr);
-        }
-        else if(rr->executing_proc->remaining_time == 0) {
-                printf("Processo [%d] finalizado\n", rr->executing_proc->pid);
-                rr_end_process(rr->executing_proc->pid, proc_list);
+int rr_start_quantum(RoundRobin *rr) {
+        return rr->quantum == 0;
+}
 
-                rr_execute_process(rr);
+void print_queues(RoundRobin *rr) {
+        ProcessNode *tmp = (ProcessNode *) malloc(sizeof(ProcessNode));
+        if(tmp == NULL) {
+                fprintf(stderr, "Erro ao alocar memoria\n");
+                exit(EXIT_FAILURE);
         }
-        else if((rr->time_elapsed) == QUANTUM) {
-                printf("Processo [%d] atingiu o tempo de quantum %d e sofrera preempcao\n", rr->executing_proc->pid, QUANTUM);
-                rr->executing_proc->status = 0;
-                node_head_enqueue(rr->low_priority, rr->executing_proc);
-                rr_execute_process(rr);
+        printf("A fila de alta prioridade contem os processos:\n");
+        printf("[%d] ", rr->high_priority->front->proc->pid);
+        tmp = rr->high_priority->front;
+        while(tmp != NULL) {
+                printf("[%d] ", tmp->proc->pid);
+                tmp = tmp->next_node;
         }
-        else if(io_req != NULL) {
-                rr->executing_proc->status = 2;
-                switch (io_req->type) {
-                        case 0:
-                                node_head_enqueue(rr->IO_queue[0], rr->executing_proc);
-                                break;
-                        case 1:
-                                node_head_enqueue(rr->IO_queue[1], rr->executing_proc);
-                                break;
-                        case 2:
-                                node_head_enqueue(rr->IO_queue[2], rr->executing_proc);
-                                break;
-                }
-                rr_execute_process(rr);
+        printf("\n\nA fila de baixa prioridade contem os processos:\n");
+        printf("[%d] ", rr->low_priority->front->proc->pid);
+        tmp = rr->low_priority->front;
+        while(tmp != NULL) {
+                printf("[%d] ", tmp->proc->pid);
+                tmp = tmp->next_node;
+        }
+        printf("\n\n");
+        printf("A fila de IO se encontra com %d processos. Sendo dos tipos:\n", rr->IO_proc_queue->size);
+        ProcessIONode *io_tmp = (ProcessIONode *) malloc(sizeof(ProcessIONode));
+        if(io_tmp == NULL) {
+                fprintf(stderr, "Erro ao alocar memoria\n");
+                exit(EXIT_FAILURE);
+        }
+        io_tmp = rr->IO_proc_queue->front;
+        printf("Tipo %d, ", io_tmp->procIO->type);
+        while(io_tmp != NULL) {
+                io_tmp = io_tmp->next_node;
+                printf("%d, ", io_tmp->procIO->type);
+        }
+        printf("\n");
+}
+
+int rr_running_to_wait(RoundRobin *rr) {
+        node_head_enqueue(rr_waiting_for_io(rr->running_procs->io_type, rr), rr->running_procs);
+        rr->running_procs->status = 2;
+        rr->running_procs->time_waiting = 0;
+        rr->running_procs = NULL;
+        return 0;
+}
+
+void rr_finish_running_proc(RoundRobin *rr) {
+        int turnaround = 0;
+        node_head_enqueue(rr->finished_procs, rr->running_procs);
+        rr->running_procs->status = 3;
+        rr->running_procs = NULL;
+        turnaround = rr->time_elapsed - rr->running_procs->arrival_time;
+        printf("O processo [%d] terminou!\n", rr->running_procs->pid);
+        printf("Seu turnaround e de: %d\n", turnaround);
+        rr->active_processes--;
+}
+
+void rr_pass_time(RoundRobin *rr) {
+        rr->time_elapsed++;
+        rr->quantum++;
+        if(rr->quantum == QUANTUM) {
+                rr->quantum = 0; // reseta e sofre preempcao
+                printf("O processo %d sofreu preempcao no tempo %d!\n", rr->running_procs->pid, rr->time_elapsed);
         }
 }
 
-int rr_process_add(RoundRobin *rr, ProcessList *process_list) {
-        if(process_list == NULL) {
-                fprintf(stderr, "Lista de processos para entrar esta vazia\n");
+int rr_running_to_ready(RoundRobin *rr) {
+        if(!rr_is_running_proc(rr))
                 return 1;
-        }
+        if(!rr_start_quantum(rr))
+                return 1;
+        int new_priority = 1;
+        rr->running_procs->priority = new_priority;
+        node_head_enqueue(rr->low_priority, rr->running_procs);
+        rr->running_procs->status = 0;
+        rr->running_procs = NULL;
+        return 0;
+}
 
-        for(int i=0; i<process_list->size; ++i) {
-                if(process_list->procs[i] != NULL && (process_list->procs[i]->arrival_time == rr->time_elapsed)) {
-                        printf("Processo com PID: %d sendo adicionado ao escalonador\n", process_list->procs[i]->pid);
-                        node_head_enqueue(rr->high_priority, process_list->procs[i]); // sempre que um proc eh adicionado ele deve entrar na fila de alta prioridade
+int rr_best_process(RoundRobin *rr) {
+        if(!queue_is_empty(rr->high_priority))
+                return 0;
+        if(!queue_is_empty(rr->low_priority))
+                return 1;
+        return 2;
+}
+
+int rr_ready_to_running(RoundRobin *rr) {
+        int priority;
+        if(rr_is_running_proc(rr))
+                return 1;
+        if(!rr_start_quantum(rr))
+                return 1;
+        priority = rr_best_process(rr);
+        if(priority == 2)
+                return 1;
+        if(priority == 0)
+                rr->running_procs = rr->high_priority->front->proc;
+        if(priority == 1)
+                rr->running_procs = rr->low_priority->front->proc;
+        rr->running_procs->status = 1;
+        if(priority == 0)
+                node_head_dequeue(rr->high_priority);
+        else
+                node_head_dequeue(rr->low_priority);
+        printf("Processo [%d] admitido!\n", rr->running_procs->pid);
+        return 0;
+
+}
+
+void rr_add_new_proc(RoundRobin *rr) {
+        while(!queue_is_empty(rr->new_procs) && rr->active_processes < MAX_PROCS) {
+                Process *proc = rr->new_procs->front->proc;
+                node_head_enqueue(rr->high_priority, proc);
+                proc->status = 0;
+                proc->priority = 0;
+                node_head_dequeue(rr->new_procs);
+                rr->active_processes++;
+        }
+}
+
+int rr_waiting_to_ready(RoundRobin *rr) {
+        for(int i=0; i<3; ++i) {
+                NodeHead *waiting_queue = rr_waiting_for_io(i, rr);
+                Process *proc;
+                if(queue_is_empty(waiting_queue))
+                        continue;
+                proc = waiting_queue->front->proc;
+                int duration, new_priority;
+                switch(proc->io_type) {
+                        case 0:
+                                duration = 2;
+                                new_priority = 1;
+                                break;
+                        case 1:
+                                duration = 4;
+                                new_priority = 0;
+                                break;
+                        case 2:
+                                duration = 6;
+                                new_priority = 0;
+                                break;
+                }
+                if(proc->time_waiting == duration) {
+                        if(new_priority == 0)
+                                node_head_enqueue(rr->high_priority, proc);
+                        if(new_priority == 1)
+                                node_head_enqueue(rr->low_priority, proc);
+                        proc->status = 0;
+                        proc->priority = new_priority;
+                        node_head_dequeue(waiting_queue);
                 }
         }
         return 0;
 }
 
-void rr_checkIO(RoundRobin *rr) {
-        for(int i=0; i<3; ++i) {
-                if(rr->IO_queue[i]->front != NULL) {
-                        rr->IO_queue[i]->front->queue_time++;
-                        if (rr->IO_queue[i]->front->queue_time == rr->IO_queue[i]->priority) {
-                                Process *tmp = node_head_dequeue(rr->IO_queue[i]);
-                                tmp->status = 0;
-                                switch (i) {
-                                        case 0:
-                                                node_head_enqueue(rr->low_priority, tmp);
-                                                break;
-                                        case 1:
-                                                node_head_enqueue(rr->high_priority, tmp);
-                                                break;
-                                        case 2:
-                                                node_head_enqueue(rr->high_priority, tmp);
-                                                break;
-                                
-                                }
-                        
-                        }
-                }
+void rr_run_proc(RoundRobin *rr) {
+        if(!rr_is_running_proc(rr))
+                return;
+        rr->running_procs->remaining_time--;
+        printf("Processo [%d] sendo executado. Tempo restante: %d\n", rr->running_procs->pid, rr->running_procs->remaining_time);
+        if(rr->running_procs->remaining_time == 0)
+                rr_finish_running_proc(rr);
+}
+
+void rr_io_finish_running_proc(RoundRobin *rr) {
+        int turnaround = 0;
+        printf("Processo de IO do tipo %d terminou no tempo %d", rr->io_running_procs->type, rr->time_elapsed);
+        IO_node_head_dequeue(rr->IO_proc_queue);
+        rr->io_running_procs = NULL;
+        turnaround = rr->time_elapsed - rr->io_running_procs->activation_time;
+        printf("Seu turnaround e de: %d\n", turnaround);
+        rr->active_processes--;
+}
+
+void rr_run_IO_proc(RoundRobin *rr) {
+        if(!rr_is_running_proc(rr))
+                return;
+        rr->IO_proc_queue->front->procIO->remaining_time--;
+        printf("Processo de IO do tipo %d sendo executado. Tempo restante: %d\n", rr->IO_proc_queue->front->procIO->type, rr->IO_proc_queue->front->procIO->remaining_time);
+        if(rr->IO_proc_queue->front->procIO->remaining_time == 0)
+                rr_io_finish_running_proc(rr);
+}
+
+void rr_pass_time_waiting_proc(RoundRobin *rr) {
+        for(int i=0; i<3; i++) {
+                NodeHead *waiting_queue = rr_waiting_for_io(i, rr);
+                if(queue_is_empty(waiting_queue))
+                        continue;
+                waiting_queue->front->proc->time_waiting++;
         }
 }
 
-
-void rr_execute_process(RoundRobin *rr) {
-        rr->executing_proc = NULL;
-        rr->time_elapsed = 0;
-
-        Process *proc;
-        proc = node_head_dequeue(rr->high_priority);
-        if(proc == NULL) {
-                printf("Fila de alta prioridade vazia\n");
-                proc = node_head_dequeue(rr->low_priority);
-                if(proc == NULL) 
-                        printf("Fila de baixa prioridade vazia!\n");
-        }
-        if(proc != NULL) {
-                proc->status = 1;
-                rr->executing_proc = proc;
-        }
-        return;
+void rr_run_all_after_preemption(RoundRobin *rr) {
+        rr_pass_time_waiting_proc(rr);
+        rr_run_proc(rr);
+        rr_pass_time(rr);
 }
 
-void rr_end_process(int pid, ProcessList *proc_list) {
-        for(int i=0; i<proc_list->size; ++i) {
-                if(proc_list->procs[i] != NULL) {
-                        if(proc_list->procs[i]->pid == pid) {
-                                proc_list->procs[i] = NULL;
-                        }
-                }
-        }
-        return;
+void rr_run_all_before_preemption(RoundRobin *rr) {
+        rr_add_new_proc(rr);
+        rr_waiting_to_ready(rr);
+        rr_running_to_ready(rr);
+        rr_ready_to_running(rr);
 }
 
-int rr_check_end_of_processes(RoundRobin *rr, ProcessList *proc_list) {
-        if(rr->executing_proc != NULL){
-                printf("Processo existente em execucao\n");
-                return 0;
-        }
-
-        if(rr->low_priority->front != NULL) {
-                printf("Processo existente em execucao na fila de baixa prioridade\n");
-                return 0;
-        }
-
-        if(rr->high_priority->front != NULL) {
-                printf("Processo existente em execucao na fila de alta prioridade\n");
-                return 0;
-        }
-
-        for(int i=0; i<proc_list->size; ++i) {
-                if(proc_list->procs[i] != NULL) {
-                        printf("Processo existente na fila de processos \n");
-                        return 0;
-                }
-        }
-
-        for(int i=0; i<3; ++i) {
-                if(rr->IO_queue[i]->front != NULL) {
-                        printf("Processo existente na fila de IO \n");
-                        return 0;
-                }
-        }
-        return 1;
+void rr_run(RoundRobin *rr) {
+        rr_run_all_after_preemption(rr);
+        rr_run_all_before_preemption(rr);
 }

@@ -33,7 +33,27 @@ NodeHead *create_node_head(int max_size, int priority) {
         return head;
 }
 
+NodeIOHead *create_node_IO_head(int max_size, int priority) {
+        NodeIOHead *IOhead;
+        if((IOhead = (NodeIOHead *) malloc(sizeof(NodeIOHead))) == NULL) {
+                fprintf(stderr, "Nao foi possivel alocar memoria");
+                exit(EXIT_FAILURE);
+        }
+
+        IOhead->front = NULL;
+        IOhead->rear = NULL;
+        IOhead->full_size = max_size;
+        IOhead->priority = priority;
+        IOhead->size = 0;
+
+        return IOhead;
+}
+
 int queue_is_empty(NodeHead *queue) {
+        return queue->size == 0;
+}
+
+int IOqueue_is_empty(NodeIOHead *queue) {
         return queue->size == 0;
 }
 
@@ -45,7 +65,6 @@ int node_head_enqueue(NodeHead *queue, Process *proc) {
         }
 
         tmp->proc = proc;
-        tmp->queue_time = 0;
         tmp->next_node = NULL;
         if (queue_is_empty(queue)) {
                 queue->front = tmp;
@@ -57,6 +76,28 @@ int node_head_enqueue(NodeHead *queue, Process *proc) {
                 queue->rear = tmp;
         }
         queue->size++;
+        return 0;
+}
+
+int node_IO_head_enqueue(NodeIOHead *IO_queue, ProcessIO *proc_io) {
+        ProcessIONode *tmp;
+        if((tmp = (ProcessIONode *) malloc(sizeof(ProcessIONode *))) == NULL) {
+                fprintf(stderr, "Nao foi possivel alocar memoria");
+                exit(EXIT_FAILURE);
+        }
+
+        tmp->procIO = proc_io;
+        tmp->next_node = NULL;
+        if(IOqueue_is_empty(IO_queue)) {
+                IO_queue->front = tmp;
+                IO_queue->rear = tmp;
+        }
+
+        else {
+                IO_queue->rear->next_node = tmp;
+                IO_queue->rear = tmp;
+        }
+        IO_queue->size++;
         return 0;
 }
 
@@ -79,4 +120,25 @@ Process *node_head_dequeue(NodeHead *queue) {
         }
         
         return tmp->proc;
+}
+
+ProcessIO *IO_node_head_dequeue(NodeIOHead *queue) {
+        // remove o primeiro elemento da fila e retorna como Process
+        if(IOqueue_is_empty(queue)) {
+                queue->front = queue->rear = NULL;
+                return NULL;
+        }
+
+        ProcessIONode *tmp;
+        tmp = queue->front;
+        queue->front = tmp->next_node;
+        if(queue->size == 1)
+                queue->rear = NULL;
+        queue->size--;
+        if(IOqueue_is_empty(queue)) {
+                queue->front = queue->rear = NULL;
+                return tmp->procIO;
+        }
+        
+        return tmp->procIO;
 }

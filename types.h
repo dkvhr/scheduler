@@ -21,6 +21,11 @@ typedef struct ProcessNode {
         int queue_time;
 } ProcessNode;
 
+typedef struct ProcessIONode {
+        ProcessIO *procIO;
+        struct ProcessIONode *next_node;
+} ProcessIONode;
+
 typedef struct IORequest {
         ProcessIO **request;
         int size;
@@ -33,6 +38,14 @@ typedef struct NodeHead {
         int priority;
         int size;
 } NodeHead;
+
+typedef struct NodeIOHead {
+        int full_size;
+        int size;
+        ProcessIONode *front;
+        ProcessIONode *rear;
+        int priority;
+} NodeIOHead;
 
 typedef struct ProcessList {
         Process **procs;
@@ -50,6 +63,8 @@ typedef struct Process{
         unsigned activation_time;  //instante de ativacao do proc
         unsigned remaining_time;  // tempo restante ate o proc finalizar
         unsigned end_time;  // instante de finalizacao do proc
+        unsigned time_waiting;
+        int io_type; // tipo de IO que o proc esta esperando
         IORequest *IO_req;  // IOs que o proc chama
         int IO_return_time;  //instante que processo retornará do IO que está sendo executado no momento
 } Process;
@@ -62,22 +77,32 @@ typedef struct ProcessIO{
         int activation_time;  // instante no tempo de execucao do processo em que o IO sera chamado (em relacao ao processo, e nao ao tempo total)
         int duration;
         int priority;  //prioridade que o processo retornara quando terminar esse IO
+        int remaining_time;
 } ProcessIO;
 
 typedef struct RoundRobin {
         int quantum;
         int time_elapsed;
-        int max_procs;
-        Process *executing_proc;
+        unsigned max_procs;
+        unsigned active_processes;
+        Process *running_procs; //proc rodando atualmente
+        ProcessIO *io_running_procs;
+        //filas
+        NodeHead *new_procs;
+        NodeHead *executing_procs;
+        NodeHead *blocked_procs;
+        NodeHead *finished_procs;
         NodeHead *high_priority;
         NodeHead *low_priority;
         NodeHead **IO_queue;
+        NodeIOHead *IO_proc_queue; // fila unica dos dispositivos de IO
 
 } RoundRobin;
 
 // Function declarations
 Process *create_process(int pid, int ppid, unsigned duration, unsigned activation_time, IORequest *io_req);  
 NodeHead *create_node_head(int max_size, int priority);
+int queue_is_empty(NodeHead *queue);
 ProcessNode *create_process_node(Process *proc);
 ProcessIO *create_IO_proc(int type, int activation_time);
 int node_head_enqueue(NodeHead *queue, Process *proc);
@@ -87,5 +112,12 @@ int rr_check_end_of_processes(RoundRobin *rr, ProcessList *proc_list);
 void rr_next_action(RoundRobin *rr, ProcessList *proc_list);
 IORequest *create_IO_request(ProcessIO **req, int size);
 ProcessIO **create_IO_proc_ptr_ptr(int size);
+NodeIOHead *create_node_IO_head(int max_size, int priority);
+int node_IO_head_enqueue(NodeIOHead *IO_queue, ProcessIO *proc_io);
+int IOqueue_is_empty(NodeIOHead *queue);
+ProcessIO *IO_node_head_dequeue(NodeIOHead *queue);
+int rr_has_active_processes(RoundRobin *rr);
+void rr_run(RoundRobin *rr);
+
 
 #endif
