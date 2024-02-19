@@ -7,21 +7,15 @@
 // Declaracoes de funcoes
 void rr_run_all_before_preemption(RoundRobin *rr);
 
-Process *create_process(int pid, int ppid, unsigned duration,
-                        unsigned arrival_time, IORequest *io_req) {
+Process *create_process(IORequest *io_req) {
   Process *new_proc;
   if ((new_proc = (Process *)malloc(sizeof(Process))) == NULL) {
     fprintf(stderr, "Nao foi possivel alocar memoria");
     exit(EXIT_FAILURE);
   }
-  new_proc->pid = pid;
-  new_proc->ppid = ppid;
   new_proc->priority = 0; // procs novos entram na fila de prioridade alta
   new_proc->status = 0;
-  new_proc->duration = duration;
   new_proc->total_exec = 0;
-  new_proc->arrival_time = arrival_time;
-  new_proc->remaining_time = duration;
   new_proc->IO_req = io_req;
 
   return new_proc;
@@ -111,14 +105,12 @@ void print_queues(RoundRobin *rr) {
     exit(EXIT_FAILURE);
   }
   printf("A fila de alta prioridade contem os processos:\n");
-  printf("[%d] ", rr->high_priority->front->proc->pid);
   tmp = rr->high_priority->front;
   while (tmp != NULL) {
     printf("[%d] ", tmp->proc->pid);
     tmp = tmp->next_node;
   }
   printf("\n\nA fila de baixa prioridade contem os processos:\n");
-  printf("[%d] ", rr->low_priority->front->proc->pid);
   tmp = rr->low_priority->front;
   while (tmp != NULL) {
     printf("[%d] ", tmp->proc->pid);
@@ -127,17 +119,11 @@ void print_queues(RoundRobin *rr) {
   printf("\n\n");
   printf("A fila de IO se encontra com %d processos. Sendo dos tipos:\n",
          rr->IO_proc_queue->size);
-  ProcessIONode *io_tmp = (ProcessIONode *)malloc(sizeof(ProcessIONode));
-  if (io_tmp == NULL) {
-    fprintf(stderr, "Erro ao alocar memoria\n");
-    exit(EXIT_FAILURE);
-  }
-  io_tmp = rr->IO_proc_queue->front;
-  printf("Tipo %d, ", io_tmp->procIO->type);
-  while (io_tmp != NULL) {
-    io_tmp = io_tmp->next_node;
-    printf("%d, ", io_tmp->procIO->type);
-  }
+  // ProcessIONode *io_tmp = rr->IO_proc_queue->front;
+  // while (io_tmp != NULL) {
+  //   io_tmp = io_tmp->next_node;
+  //   printf("%d, ", io_tmp->procIO->type);
+  // }
   printf("\n");
 }
 
@@ -169,9 +155,6 @@ void rr_pass_time(RoundRobin *rr) {
     printf("O processo %d sofreu preempcao no tempo %d!\n",
            rr->running_procs->pid, rr->time_elapsed);
   }
-  // se descomentarmos, da segfault
-  // ocorre na hora de printar a fila de baixa prioridade
-  // print_queues(rr);
 }
 
 int rr_running_to_ready(RoundRobin *rr) {

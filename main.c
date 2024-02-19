@@ -18,9 +18,8 @@ int main(void) {
   IORequest *io_req;
   fscanf(file, "%d", &n_procs);
   for (int i = 0; i < n_procs; i++) {
-    int pid, ppid, duration, arrival_time;
     io_req = create_IO_request(NULL, 0);
-    Process *proc = create_process(pid, ppid, duration, arrival_time, io_req);
+    Process *proc = create_process(io_req);
     node_head_enqueue(rr.new_procs, proc);
     fscanf(file, "%d %d %d %d %d", &proc->pid, &proc->ppid, &proc->duration,
            &proc->arrival_time, &io_req->size);
@@ -46,6 +45,7 @@ int main(void) {
 
   while (rr_has_active_processes(&rr)) {
     rr_run(&rr);
+    print_queues(&rr);
   }
 
   return 0;

@@ -102,8 +102,7 @@ typedef struct RoundRobin {
 } RoundRobin;
 
 // Function declarations
-Process *create_process(int pid, int ppid, unsigned duration,
-                        unsigned activation_time, IORequest *io_req);
+Process *create_process(IORequest *io_req);
 NodeHead *create_node_head(int max_size, int priority);
 int queue_is_empty(NodeHead *queue);
 ProcessNode *create_process_node(Process *proc);
