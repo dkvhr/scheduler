@@ -11,95 +11,99 @@ typedef struct ProcessIO ProcessIO;
 
 // Tempos de E/S
 #define DISK_TIME 2
-#define TAPE_TIME 4 
+#define TAPE_TIME 4
 #define PRINTER_TIME 6
 
 // fila de um processo normal
 typedef struct ProcessNode {
-        Process *proc;
-        struct ProcessNode *next_node;
-        int queue_time;
+  Process *proc;
+  struct ProcessNode *next_node;
+  int queue_time;
 } ProcessNode;
 
 typedef struct ProcessIONode {
-        ProcessIO *procIO;
-        struct ProcessIONode *next_node;
+  ProcessIO *procIO;
+  struct ProcessIONode *next_node;
 } ProcessIONode;
 
 typedef struct IORequest {
-        ProcessIO **request;
-        int size;
+  ProcessIO **request;
+  int size;
 } IORequest;
 
 typedef struct NodeHead {
-        int full_size;
-        ProcessNode *front;
-        ProcessNode *rear;
-        int priority;
-        int size;
+  int full_size;
+  ProcessNode *front;
+  ProcessNode *rear;
+  int priority;
+  int size;
 } NodeHead;
 
 typedef struct NodeIOHead {
-        int full_size;
-        int size;
-        ProcessIONode *front;
-        ProcessIONode *rear;
-        int priority;
+  int full_size;
+  int size;
+  ProcessIONode *front;
+  ProcessIONode *rear;
+  int priority;
 } NodeIOHead;
 
 typedef struct ProcessList {
-        Process **procs;
-        int size;
+  Process **procs;
+  int size;
 } ProcessList;
 
-typedef struct Process{
-        int pid;
-        int ppid;
-        int priority;  // 0=alta, 1=baixa
-        int status;  //0=Pronto, 1=Rodando, 2=Bloqueado, 3=Terminado 
-        unsigned arrival_time; // quando o proc chega
-        unsigned duration;  //tempo de duracao do proc
-        unsigned total_exec;  // tempo total de execucao ate o momento
-        unsigned activation_time;  //instante de ativacao do proc
-        unsigned remaining_time;  // tempo restante ate o proc finalizar
-        unsigned end_time;  // instante de finalizacao do proc
-        unsigned time_waiting;
-        int io_type; // tipo de IO que o proc esta esperando
-        IORequest *IO_req;  // IOs que o proc chama
-        int IO_return_time;  //instante que processo retornará do IO que está sendo executado no momento
+typedef struct Process {
+  int pid;
+  int ppid;
+  int priority;             // 0=alta, 1=baixa
+  int status;               // 0=Pronto, 1=Rodando, 2=Bloqueado, 3=Terminado
+  unsigned arrival_time;    // quando o proc chega
+  unsigned duration;        // tempo de duracao do proc
+  unsigned total_exec;      // tempo total de execucao ate o momento
+  unsigned activation_time; // instante de ativacao do proc
+  unsigned remaining_time;  // tempo restante ate o proc finalizar
+  unsigned end_time;        // instante de finalizacao do proc
+  unsigned time_waiting;
+  int io_type;        // tipo de IO que o proc esta esperando
+  IORequest *IO_req;  // IOs que o proc chama
+  int IO_return_time; // instante que processo retornará do IO que está sendo
+                      // executado no momento
 } Process;
 
-typedef struct ProcessIO{
-        int type;  // 0=Disco, 1=Fita, 2=Impressora
-        // tempo de disco = 2
-        // tempo de fita = 4
-        // tempo de impressora = 6 
-        int activation_time;  // instante no tempo de execucao do processo em que o IO sera chamado (em relacao ao processo, e nao ao tempo total)
-        int duration;
-        int priority;  //prioridade que o processo retornara quando terminar esse IO
-        int remaining_time;
+typedef struct ProcessIO {
+  int type; // 0=Disco, 1=Fita, 2=Impressora
+  // tempo de disco = 2
+  // tempo de fita = 4
+  // tempo de impressora = 6
+  int activation_time; // instante no tempo de execucao do processo em que o IO
+                       // sera chamado (em relacao ao processo, e nao ao tempo
+                       // total)
+  int duration;
+  int priority; // prioridade que o processo retornara quando terminar esse IO
+  int remaining_time;
 } ProcessIO;
 
 typedef struct RoundRobin {
-        int quantum;
-        int time_elapsed;
-        unsigned max_procs;
-        unsigned active_processes;
-        Process *running_procs; //proc rodando atualmente
-        ProcessIO *io_running_procs;
-        //filas
-        NodeHead *new_procs;
-        NodeHead *blocked_procs;
-        NodeHead *finished_procs;
-        NodeHead *high_priority;
-        NodeHead *low_priority;
-        NodeHead **IO_queue;
-        NodeIOHead *IO_proc_queue; // fila unica dos dispositivos de IO
+  int quantum;
+  int time_elapsed;
+  unsigned max_procs;
+  unsigned active_processes;
+  Process *running_procs; // proc rodando atualmente
+  ProcessIO *io_running_procs;
+  // filas
+  NodeHead *new_procs;
+  NodeHead *blocked_procs;
+  NodeHead *finished_procs;
+  NodeHead *high_priority;
+  NodeHead *low_priority;
+  NodeHead **IO_queue;
+  NodeIOHead *IO_proc_queue; // fila unica dos dispositivos de IO
 
 } RoundRobin;
 
 // Function declarations
-Process *create_process(int pid, int ppid, unsigned duration, unsigned activation_time, IORequest *io_req);  
+Process *create_process(int pid, int ppid, unsigned duration,
+                        unsigned activation_time, IORequest *io_req);
 NodeHead *create_node_head(int max_size, int priority);
 int queue_is_empty(NodeHead *queue);
 ProcessNode *create_process_node(Process *proc);
