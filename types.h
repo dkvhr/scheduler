@@ -7,6 +7,7 @@ typedef struct ProcessIO ProcessIO;
 
 #define MAX_PROCS 1024
 #define MAX_IO_PROCS 1024
+#define QUANTUM 4
 
 // Tempos de E/S
 #define DISK_TIME 2
@@ -74,12 +75,18 @@ typedef struct RoundRobin {
 
 } RoundRobin;
 
+
+
+
 // Function declarations
-Process *create_process(int pid, int ppid, int duration, int activation_time, int num_of_IOs, NodeHead *processIOs);  
+Process *create_process(int pid, int ppid, int duration, int activation_time, int num_of_IOs);  
 NodeHead *create_node_head();
 ProcessNode *create_process_node(Process *proc);
 ProcessIO *create_IO_proc(int type, int activation_time);
 int node_head_enqueue(NodeHead *queue, Process *proc);
 Process *node_head_dequeue(NodeHead *queue);
+RoundRobin round_robin_init();
+int rr_check_end_of_processes(RoundRobin *rr, ProcessList *proc_list);
+void rr_next_action(RoundRobin *rr, ProcessList *proc_list);
 
 #endif

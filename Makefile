@@ -7,6 +7,9 @@ scheduler.o: scheduler.c
 queue.o: queue.c
 	gcc -Wall -c queue.c
 
+run:
+	./a.out
+
 clean:
 	rm -fr *.o *.out
 
