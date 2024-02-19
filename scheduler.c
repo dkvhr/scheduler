@@ -93,8 +93,6 @@ RoundRobin round_robin_init() {
         rr.finished_procs = create_node_head(MAX_PROCS, 0);
         rr.IO_proc_queue = create_node_IO_head(MAX_IO_PROCS, MAX_IO_PROCS);
 
-        rr_run_all_before_preemption(&rr);
-
         return rr;
 }
 
@@ -172,6 +170,9 @@ void rr_pass_time(RoundRobin *rr) {
                 rr->quantum = 0; // reseta e sofre preempcao
                 printf("O processo %d sofreu preempcao no tempo %d!\n", rr->running_procs->pid, rr->time_elapsed);
         }
+        // se descomentarmos, da segfault
+        // ocorre na hora de printar a fila de baixa prioridade
+        //print_queues(rr);
 }
 
 int rr_running_to_ready(RoundRobin *rr) {
@@ -199,7 +200,7 @@ int rr_ready_to_running(RoundRobin *rr) {
         int priority;
         if(rr_is_running_proc(rr))
                 return 1;
-        if(!rr_start_quantum(rr))
+        if(rr_start_quantum(rr))
                 return 1;
         priority = rr_best_process(rr);
         if(priority == 2)
@@ -213,7 +214,7 @@ int rr_ready_to_running(RoundRobin *rr) {
                 node_head_dequeue(rr->high_priority);
         else
                 node_head_dequeue(rr->low_priority);
-        printf("Processo [%d] admitido!\n", rr->running_procs->pid);
+        printf("Processo [%d] executando!\n", rr->running_procs->pid);
         return 0;
 
 }
@@ -315,6 +316,6 @@ void rr_run_all_before_preemption(RoundRobin *rr) {
 }
 
 void rr_run(RoundRobin *rr) {
-        rr_run_all_after_preemption(rr);
         rr_run_all_before_preemption(rr);
+        rr_run_all_after_preemption(rr);
 }

@@ -118,6 +118,6 @@ ProcessIO *IO_node_head_dequeue(NodeIOHead *queue);
 int rr_has_active_processes(RoundRobin *rr);
 void rr_run(RoundRobin *rr);
 void print_queues(RoundRobin *rr);
-
+void rr_run_all_before_preemption(RoundRobin *rr);
 
 #endif

@@ -41,10 +41,10 @@ int main(void) {
                 proc->remaining_time = proc->duration;
         }
 
+        rr_run_all_before_preemption(&rr);
 
         while(rr_has_active_processes(&rr)) {
                 rr_run(&rr);
-                print_queues(&rr);
         }
 
         return 0;

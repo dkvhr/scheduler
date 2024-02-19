@@ -1,5 +1,5 @@
 all: main.c scheduler.o queue.o
-	gcc -Wall main.c scheduler.o queue.o
+	gcc main.c scheduler.o queue.o
 
 scheduler.o: scheduler.c
 	gcc -Wall -c scheduler.c
