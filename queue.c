@@ -17,7 +17,7 @@ ProcessNode *create_process_node(Process *proc) {
         return node;
 }
 
-NodeHead *create_node_head() {
+NodeHead *create_node_head(int max_size, int priority) {
         NodeHead *head;
         if ((head = (NodeHead *) malloc(sizeof(NodeHead))) == NULL) {
                 fprintf(stderr, "Nao foi possivel alocar memoria");
@@ -26,13 +26,15 @@ NodeHead *create_node_head() {
 
         head->front = NULL;
         head->rear = NULL;
-        head->full_size = 0;
+        head->full_size = max_size;
+        head->priority = priority;
+        head->size = 0;
 
         return head;
 }
 
 int queue_is_empty(NodeHead *queue) {
-        return queue->full_size == 0;
+        return queue->size == 0;
 }
 
 int node_head_enqueue(NodeHead *queue, Process *proc) {
@@ -54,7 +56,7 @@ int node_head_enqueue(NodeHead *queue, Process *proc) {
                 queue->rear->next_node = tmp;
                 queue->rear = tmp;
         }
-        queue->full_size++;
+        queue->size++;
         return 0;
 }
 
@@ -68,9 +70,9 @@ Process *node_head_dequeue(NodeHead *queue) {
         ProcessNode *tmp;
         tmp = queue->front;
         queue->front = tmp->next_node;
-        if(queue->full_size == 1)
+        if(queue->size == 1)
                 queue->rear = NULL;
-        queue->full_size--;
+        queue->size--;
         if(queue_is_empty(queue)) {
                 queue->front = queue->rear = NULL;
                 return tmp->proc;

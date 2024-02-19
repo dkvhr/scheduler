@@ -31,6 +31,7 @@ typedef struct NodeHead {
         ProcessNode *front;
         ProcessNode *rear;
         int priority;
+        int size;
 } NodeHead;
 
 typedef struct ProcessList {
@@ -43,13 +44,12 @@ typedef struct Process{
         int ppid;
         int priority;  // 0=alta, 1=baixa
         int status;  //0=Pronto, 1=Rodando, 2=Bloqueado, 3=Terminado 
-        int arrival_time; // quando o proc chega
-        int duration;  //tempo de duracao do proc
-        int total_exec;  // tempo total de execucao ate o momento
-        int activation_time;  //instante de ativacao do proc
-        int remaining_time;  // tempo restante ate o proc finalizar
-        int end_time;  // instante de finalizacao do proc
-        int num_of_IOs;  // numero de IOs que o processo chama
+        unsigned arrival_time; // quando o proc chega
+        unsigned duration;  //tempo de duracao do proc
+        unsigned total_exec;  // tempo total de execucao ate o momento
+        unsigned activation_time;  //instante de ativacao do proc
+        unsigned remaining_time;  // tempo restante ate o proc finalizar
+        unsigned end_time;  // instante de finalizacao do proc
         IORequest *IO_req;  // IOs que o proc chama
         int IO_return_time;  //instante que processo retornará do IO que está sendo executado no momento
 } Process;
@@ -75,12 +75,9 @@ typedef struct RoundRobin {
 
 } RoundRobin;
 
-
-
-
 // Function declarations
-Process *create_process(int pid, int ppid, int duration, int activation_time, int num_of_IOs);  
-NodeHead *create_node_head();
+Process *create_process(int pid, int ppid, unsigned duration, unsigned activation_time, IORequest *io_req);  
+NodeHead *create_node_head(int max_size, int priority);
 ProcessNode *create_process_node(Process *proc);
 ProcessIO *create_IO_proc(int type, int activation_time);
 int node_head_enqueue(NodeHead *queue, Process *proc);
@@ -88,5 +85,7 @@ Process *node_head_dequeue(NodeHead *queue);
 RoundRobin round_robin_init();
 int rr_check_end_of_processes(RoundRobin *rr, ProcessList *proc_list);
 void rr_next_action(RoundRobin *rr, ProcessList *proc_list);
+IORequest *create_IO_request(ProcessIO **req, int size);
+ProcessIO **create_IO_proc_ptr_ptr(int size);
 
 #endif

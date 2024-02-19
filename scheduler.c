@@ -10,8 +10,7 @@ void rr_checkIO(RoundRobin *rr);
 void rr_execute_process(RoundRobin *rr);
 void rr_end_process(int pid, ProcessList *proc_list);
 
-
-Process *create_process(int pid, int ppid, int duration, int activation_time, int num_of_IOs) {
+Process *create_process(int pid, int ppid, unsigned duration, unsigned arrival_time, IORequest *io_req) {
         Process *new_proc;
         if ((new_proc = (Process *) malloc(sizeof(Process))) == NULL) {
                 fprintf(stderr, "Nao foi possivel alocar memoria");
@@ -23,8 +22,9 @@ Process *create_process(int pid, int ppid, int duration, int activation_time, in
         new_proc->status = 0;
         new_proc->duration = duration;
         new_proc->total_exec = 0;
-        new_proc->activation_time = activation_time;
-        new_proc->num_of_IOs = num_of_IOs;
+        new_proc->arrival_time = arrival_time;
+        new_proc->remaining_time = duration;
+        new_proc->IO_req = io_req;
 
         return new_proc;
 }
@@ -54,6 +54,27 @@ ProcessIO *create_IO_proc(int type, int activation_time) {
         return new_proc_IO;
 }
 
+IORequest *create_IO_request(ProcessIO **req, int size) {
+        IORequest *io_req;
+        if((io_req = (IORequest *) malloc(sizeof(IORequest *))) == NULL) {
+                fprintf(stderr, "Nao foi possivel alocar memoria\n");
+                exit(EXIT_FAILURE);
+        }
+        io_req->request = req;
+        io_req->size = size;
+
+        return io_req;
+}
+
+ProcessIO **create_IO_proc_ptr_ptr(int size) {
+        ProcessIO **IO_proc_ptr_ptr = (ProcessIO **) malloc(size * sizeof(ProcessIO *));
+        if (IO_proc_ptr_ptr == NULL) {
+                fprintf(stderr, "Nao foi possivel alocar memoria\n");
+                exit(EXIT_FAILURE);
+        }
+        return IO_proc_ptr_ptr;
+}
+
 ProcessIO *check_IO_request(Process *proc) {
         if(proc->IO_req->size == 0) {
                 printf("Nao ha processos IO, continuando...\n");
@@ -74,15 +95,16 @@ RoundRobin round_robin_init() {
         // Falta implementar
         RoundRobin rr;
         rr.time_elapsed = 0; // tempo relativo a cada vez que o proc e executado (dps de uma preempcao ele volta pra 0)
+        rr.quantum = QUANTUM;
         rr.max_procs = MAX_PROCS;
         rr.executing_proc = NULL;
         // criando filas de procs e IO
-        rr.high_priority = create_node_head();
-        rr.low_priority = create_node_head();
+        rr.high_priority = create_node_head(MAX_PROCS, 0);
+        rr.low_priority = create_node_head(MAX_PROCS, 1);
         rr.IO_queue = (NodeHead **) malloc(3 * sizeof(NodeHead *));
-        rr.IO_queue[0] = create_node_head(); //Disk
-        rr.IO_queue[1] = create_node_head(); //Tape
-        rr.IO_queue[2] = create_node_head(); //Printer
+        rr.IO_queue[0] = create_node_head(MAX_IO_PROCS, 1); //Disk
+        rr.IO_queue[1] = create_node_head(MAX_IO_PROCS, 0); //Tape
+        rr.IO_queue[2] = create_node_head(MAX_IO_PROCS, 1); //Printer
 
         return rr;
 }
@@ -111,7 +133,7 @@ void rr_next_action(RoundRobin *rr, ProcessList *proc_list) {
                 rr_execute_process(rr);
         }
         else if((rr->time_elapsed) == QUANTUM) {
-                printf("Processo [%d] atingiu o tempo de quantum e sofrera preempcao", rr->executing_proc->pid);
+                printf("Processo [%d] atingiu o tempo de quantum %d e sofrera preempcao\n", rr->executing_proc->pid, QUANTUM);
                 rr->executing_proc->status = 0;
                 node_head_enqueue(rr->low_priority, rr->executing_proc);
                 rr_execute_process(rr);
@@ -179,53 +201,59 @@ void rr_execute_process(RoundRobin *rr) {
         rr->time_elapsed = 0;
 
         Process *proc;
-        if((proc = node_head_dequeue(rr->high_priority)) == NULL) {
+        proc = node_head_dequeue(rr->high_priority);
+        if(proc == NULL) {
                 printf("Fila de alta prioridade vazia\n");
-                if((proc = node_head_dequeue(rr->low_priority)) == NULL) {
+                proc = node_head_dequeue(rr->low_priority);
+                if(proc == NULL) 
                         printf("Fila de baixa prioridade vazia!\n");
-                        exit(EXIT_FAILURE);
-                }
         }
-        proc->status = 1;
-        rr->executing_proc = proc;
+        if(proc != NULL) {
+                proc->status = 1;
+                rr->executing_proc = proc;
+        }
+        return;
 }
 
 void rr_end_process(int pid, ProcessList *proc_list) {
         for(int i=0; i<proc_list->size; ++i) {
-                if((proc_list->procs[i]) != NULL && (proc_list->procs[i]->pid == pid)) {
-                        proc_list->procs[i] = NULL;
+                if(proc_list->procs[i] != NULL) {
+                        if(proc_list->procs[i]->pid == pid) {
+                                proc_list->procs[i] = NULL;
+                        }
                 }
         }
+        return;
 }
 
 int rr_check_end_of_processes(RoundRobin *rr, ProcessList *proc_list) {
         if(rr->executing_proc != NULL){
                 printf("Processo existente em execucao\n");
-                return 1;
+                return 0;
         }
 
         if(rr->low_priority->front != NULL) {
                 printf("Processo existente em execucao na fila de baixa prioridade\n");
-                return 1;
+                return 0;
         }
 
         if(rr->high_priority->front != NULL) {
                 printf("Processo existente em execucao na fila de alta prioridade\n");
-                return 1;
+                return 0;
         }
 
         for(int i=0; i<proc_list->size; ++i) {
                 if(proc_list->procs[i] != NULL) {
                         printf("Processo existente na fila de processos \n");
-                        return 1;
+                        return 0;
                 }
         }
 
         for(int i=0; i<3; ++i) {
                 if(rr->IO_queue[i]->front != NULL) {
                         printf("Processo existente na fila de IO \n");
-                        return 1;
+                        return 0;
                 }
         }
-        return 0;
+        return 1;
 }
