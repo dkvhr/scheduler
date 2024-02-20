@@ -107,15 +107,17 @@ Process *node_head_dequeue(NodeHead *queue) {
   ProcessNode *tmp;
   tmp = queue->front;
   queue->front = tmp->next_node;
+  Process *tmpp = tmp->proc;
+  free(tmp);
   if (queue->size == 1)
     queue->rear = NULL;
   queue->size--;
   if (queue_is_empty(queue)) {
     queue->front = queue->rear = NULL;
-    return tmp->proc;
+    return tmpp;
   }
 
-  return tmp->proc;
+  return tmpp;
 }
 
 ProcessIO *IO_node_head_dequeue(NodeIOHead *queue) {
@@ -128,13 +130,15 @@ ProcessIO *IO_node_head_dequeue(NodeIOHead *queue) {
   ProcessIONode *tmp;
   tmp = queue->front;
   queue->front = tmp->next_node;
+  ProcessIO *tmpp = tmp->procIO;
+  free(tmp);
   if (queue->size == 1)
     queue->rear = NULL;
   queue->size--;
   if (IOqueue_is_empty(queue)) {
     queue->front = queue->rear = NULL;
-    return tmp->procIO;
+    return tmpp;
   }
 
-  return tmp->procIO;
+  return tmpp;
 }
