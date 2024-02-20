@@ -58,18 +58,6 @@ IORequest *create_IO_request(ProcessIO **req, int size) {
   return io_req;
 }
 
-NodeHead *rr_waiting_for_io(int io_type, RoundRobin *rr) {
-  switch (io_type) {
-  case 0:
-    return rr->IO_queue[0];
-  case 1:
-    return rr->IO_queue[1];
-  case 2:
-    return rr->IO_queue[2];
-  }
-  return NULL;
-}
-
 RoundRobin round_robin_init() {
   RoundRobin rr;
   rr.time_elapsed = 0; // tempo relativo a cada vez que o proc e executado (dps
@@ -84,10 +72,10 @@ RoundRobin round_robin_init() {
   rr.new_procs = create_node_head(MAX_PROCS, 0);
   rr.high_priority = create_node_head(MAX_PROCS, 0);
   rr.low_priority = create_node_head(MAX_PROCS, 1);
-  rr.IO_queue = (NodeHead **)malloc(3 * sizeof(NodeHead *));
-  rr.IO_queue[0] = create_node_head(MAX_PROCS, 1); // Disk
-  rr.IO_queue[1] = create_node_head(MAX_PROCS, 0); // Tape
-  rr.IO_queue[2] = create_node_head(MAX_PROCS, 0); // Printer
+  rr.IO_queue = (NodeIOHead **)malloc(3 * sizeof(NodeIOHead *));
+  rr.IO_queue[0] = create_node_IO_head(MAX_PROCS, 1); // Disk
+  rr.IO_queue[1] = create_node_IO_head(MAX_PROCS, 0); // Tape
+  rr.IO_queue[2] = create_node_IO_head(MAX_PROCS, 0); // Printer
   rr.finished_procs = create_node_head(MAX_PROCS, 0);
   rr.IO_proc_queue = create_node_IO_head(MAX_IO_PROCS, MAX_IO_PROCS);
 
@@ -132,8 +120,8 @@ void print_queues(RoundRobin *rr) {
 }
 
 int rr_running_to_wait(RoundRobin *rr) {
-  node_head_enqueue(rr_waiting_for_io(rr->running_procs->io_type, rr),
-                    rr->running_procs);
+  // node_IO_head_enqueue(rr_waiting_for_io(rr->running_procs->io_type, rr),
+  //                   rr->running_procs);
   rr->running_procs->status = 2;
   rr->running_procs->time_waiting = 0;
   rr->running_procs = NULL;
@@ -228,7 +216,7 @@ void rr_add_new_io_proc(RoundRobin *rr) {
 
 int rr_waiting_to_ready(RoundRobin *rr) {
   for (int i = 0; i < 3; ++i) {
-    NodeHead *waiting_queue = rr_waiting_for_io(i, rr);
+    NodeHead *waiting_queue = rr->blocked_procs;
     Process *proc;
     if (queue_is_empty(waiting_queue))
       continue;
@@ -309,18 +297,11 @@ void rr_run_IO_proc(RoundRobin *rr) {
 
 void rr_pass_time_waiting_proc(RoundRobin *rr) {
   for (int i = 0; i < 3; i++) {
-    NodeHead *waiting_queue = rr_waiting_for_io(i, rr);
+    NodeHead *waiting_queue = rr->blocked_procs;
     if (queue_is_empty(waiting_queue))
       continue;
     waiting_queue->front->proc->time_waiting++;
   }
-}
-
-void rr_run_all_after_preemption(RoundRobin *rr) {
-  rr_pass_time_waiting_proc(rr);
-  // rr_run_IO_proc(rr);
-  rr_run_proc(rr);
-  rr_pass_time(rr);
 }
 
 void rr_run_all_before_preemption(RoundRobin *rr) {
@@ -328,6 +309,13 @@ void rr_run_all_before_preemption(RoundRobin *rr) {
   rr_waiting_to_ready(rr);
   rr_running_to_ready(rr);
   rr_ready_to_running(rr);
+}
+
+void rr_run_all_after_preemption(RoundRobin *rr) {
+  rr_pass_time_waiting_proc(rr);
+  // rr_run_IO_proc(rr);
+  rr_run_proc(rr);
+  rr_pass_time(rr);
 }
 
 void rr_run(RoundRobin *rr) {
