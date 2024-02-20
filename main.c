@@ -20,9 +20,9 @@ int main(void) {
   for (int i = 0; i < n_procs; i++) {
     io_req = create_IO_request(NULL, 0);
     Process *proc = create_process(io_req);
-    node_head_enqueue(rr.new_procs, proc);
     fscanf(file, "%d %d %d %d %d", &proc->pid, &proc->ppid, &proc->duration,
            &proc->arrival_time, &io_req->size);
+    node_head_enqueue(rr.new_procs, proc);
     printf("\nProcesso [%d]\n", proc->pid);
     printf("Duracao de %d. Tempo de chegada: %d\n", proc->duration,
            proc->arrival_time);
@@ -46,7 +46,7 @@ int main(void) {
 
   while (rr_has_active_processes(&rr)) {
     rr_run(&rr);
-    print_queues(&rr);
+    //print_queues(&rr);
   }
 
   return 0;

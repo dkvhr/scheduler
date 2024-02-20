@@ -149,6 +149,7 @@ void rr_pass_time(RoundRobin *rr) {
     printf("O processo %d sofreu preempcao no tempo %d!\n",
            rr->running_procs->pid, rr->time_elapsed);
   }
+  print_queues(rr);
 }
 
 int rr_running_to_ready(RoundRobin *rr) {
@@ -195,8 +196,15 @@ int rr_ready_to_running(RoundRobin *rr) {
 }
 
 void rr_add_new_proc(RoundRobin *rr) {
+  printf("DEBUG\n");
   while (!queue_is_empty(rr->new_procs) && rr->active_processes < MAX_PROCS) {
     Process *proc = rr->new_procs->front->proc;
+    printf("debug\n");
+    printf("arrival time e de %d e o time elapsed e de %d\n", proc->arrival_time, rr->time_elapsed);
+    if(proc->arrival_time > rr->time_elapsed) {
+      printf("deb\n");
+      break;
+    }
     node_head_enqueue(rr->high_priority, proc);
     proc->status = 0;
     proc->priority = 0;

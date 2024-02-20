@@ -57,7 +57,7 @@ typedef struct Process {
   int ppid;
   int priority;             // 0=alta, 1=baixa
   int status;               // 0=Pronto, 1=Rodando, 2=Bloqueado, 3=Terminado
-  unsigned arrival_time;    // quando o proc chega
+  int arrival_time;    // quando o proc chega
   unsigned duration;        // tempo de duracao do proc
   unsigned total_exec;      // tempo total de execucao ate o momento
   unsigned activation_time; // instante de ativacao do proc
