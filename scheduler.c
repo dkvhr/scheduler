@@ -70,13 +70,14 @@ RoundRobin round_robin_init() {
   rr.io_running_procs = NULL;
   // criando filas de procs e IO
   rr.new_procs = create_node_head(MAX_PROCS, 0);
+  rr.new_io_procs = create_node_IO_head(MAX_IO_PROCS, 0);
   rr.high_priority = create_node_head(MAX_PROCS, 0);
   rr.low_priority = create_node_head(MAX_PROCS, 1);
   rr.IO_queue = (NodeIOHead **)malloc(3 * sizeof(NodeIOHead *));
   rr.IO_queue[0] = create_node_IO_head(MAX_PROCS, 1); // Disk
   rr.IO_queue[1] = create_node_IO_head(MAX_PROCS, 0); // Tape
   rr.IO_queue[2] = create_node_IO_head(MAX_PROCS, 0); // Printer
-  rr.finished_procs = create_node_head(MAX_PROCS, 0);
+  rr.finished_procs = create_node_head(MAX_IO_PROCS, 0);
 
   return rr;
 }
@@ -198,17 +199,23 @@ void rr_add_new_proc(RoundRobin *rr) {
 }
 
 void rr_add_new_io_proc(RoundRobin *rr) {
+  printf("is empty %d\n", io_queue_is_empty(rr->new_io_procs));
+  printf("7aa\n");
   while (!io_queue_is_empty(rr->new_io_procs) &&
          rr->active_io_processes < MAX_IO_PROCS) {
+    printf("3aa\n");
     ProcessIO *proc_io = rr->new_io_procs->front->procIO;
+    printf("4aa\n");
     if (proc_io->activation_time > rr->time_elapsed) {
       break;
     }
+    printf("5aa\n");
     node_IO_head_enqueue(rr->IO_queue[proc_io->type], proc_io);
     if (proc_io->type == 0)
       proc_io->priority = 1;
     if (proc_io->type == 1 || proc_io->type == 2)
       proc_io->priority = 0;
+    printf("6aa\n");
     IO_node_head_dequeue(rr->new_io_procs);
     rr->active_io_processes++;
   }
@@ -299,7 +306,6 @@ void rr_pass_time_waiting_proc(RoundRobin *rr) {
 }
 
 void rr_run_all_before_preemption(RoundRobin *rr) {
-  rr_add_new_proc(rr);
   rr_waiting_to_ready(rr);
   rr_running_to_ready(rr);
   rr_ready_to_running(rr);

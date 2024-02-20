@@ -56,9 +56,14 @@ int main(void) {
   }
   printf("\n");
 
-  rr_run_all_before_preemption(&rr);
+  printf("1aa\n");
+  rr_add_new_proc(&rr);
+  printf("2aa\n");
+  rr_add_new_io_proc(&rr);
 
+  printf("3aa\n");
   while (rr_has_active_processes(&rr)) {
+    printf("4aa\n");
     rr_run(&rr);
     // print_queues(&rr);
   }

@@ -125,4 +125,7 @@ void print_queues(RoundRobin *rr);
 void rr_run_all_before_preemption(RoundRobin *rr);
 int io_queue_is_empty(NodeIOHead *queue);
 
+void rr_add_new_proc(RoundRobin *rr);
+void rr_add_new_io_proc(RoundRobin *rr);
+
 #endif
