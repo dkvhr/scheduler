@@ -96,11 +96,15 @@ RoundRobin round_robin_init() {
 
 int rr_is_running_proc(RoundRobin *rr) { return rr->running_procs != NULL; }
 
-int rr_is_running_io_proc(RoundRobin *rr) { return rr->io_running_procs != NULL; }
+int rr_is_running_io_proc(RoundRobin *rr) {
+  return rr->io_running_procs != NULL;
+}
 
 int rr_has_active_processes(RoundRobin *rr) { return rr->active_processes > 0; }
 
-int rr_has_active_io_processes(RoundRobin *rr) { return rr->active_io_processes > 0; }
+int rr_has_active_io_processes(RoundRobin *rr) {
+  return rr->active_io_processes > 0;
+}
 
 int rr_start_quantum(RoundRobin *rr) { return rr->quantum == 0; }
 
@@ -136,14 +140,14 @@ int rr_running_to_wait(RoundRobin *rr) {
   return 0;
 }
 
-
 void rr_pass_time(RoundRobin *rr) {
   rr->time_elapsed++;
   rr->quantum++;
-  if (rr->quantum == QUANTUM && rr->running_procs != NULL) {
+  if (rr->quantum == QUANTUM) {
     rr->quantum = 0; // reseta e sofre preempcao
-    printf("O processo %d sofreu preempcao no tempo %d!\n",
-           rr->running_procs->pid, rr->time_elapsed);
+    if (rr->running_procs != NULL)
+      printf("O processo %d sofreu preempcao no tempo %d!\n",
+             rr->running_procs->pid, rr->time_elapsed);
   }
   print_queues(rr);
 }
@@ -194,7 +198,7 @@ int rr_ready_to_running(RoundRobin *rr) {
 void rr_add_new_proc(RoundRobin *rr) {
   while (!queue_is_empty(rr->new_procs) && rr->active_processes < MAX_PROCS) {
     Process *proc = rr->new_procs->front->proc;
-    if(proc->arrival_time > rr->time_elapsed) {
+    if (proc->arrival_time > rr->time_elapsed) {
       break;
     }
     node_head_enqueue(rr->high_priority, proc);
@@ -206,15 +210,16 @@ void rr_add_new_proc(RoundRobin *rr) {
 }
 
 void rr_add_new_io_proc(RoundRobin *rr) {
-  while (!io_queue_is_empty(rr->new_io_procs) && rr->active_io_processes < MAX_IO_PROCS) {
+  while (!io_queue_is_empty(rr->new_io_procs) &&
+         rr->active_io_processes < MAX_IO_PROCS) {
     ProcessIO *proc_io = rr->new_io_procs->front->procIO;
-    if(proc_io->activation_time > rr->time_elapsed) {
+    if (proc_io->activation_time > rr->time_elapsed) {
       break;
     }
     node_IO_head_enqueue(rr->IO_proc_queue, proc_io);
-    if(proc_io->type == 0)
+    if (proc_io->type == 0)
       proc_io->priority = 1;
-    if(proc_io->type == 1 || proc_io->type == 2)
+    if (proc_io->type == 1 || proc_io->type == 2)
       proc_io->priority = 0;
     IO_node_head_dequeue(rr->new_io_procs);
     rr->active_io_processes++;
@@ -263,7 +268,7 @@ void rr_finish_running_proc(RoundRobin *rr) {
   turnaround = rr->time_elapsed - rr->running_procs->arrival_time;
   printf("O processo [%d] terminou!\n", rr->running_procs->pid);
   rr->running_procs = NULL;
-  printf("Seu turnaround e de: %d\n", turnaround+1);
+  printf("Seu turnaround e de: %d\n", turnaround + 1);
   rr->active_processes--;
 }
 
@@ -284,8 +289,9 @@ void rr_io_finish_running_proc(RoundRobin *rr) {
          rr->IO_proc_queue->front->procIO->type, rr->time_elapsed);
   IO_node_head_dequeue(rr->IO_proc_queue);
   rr->IO_proc_queue = NULL;
-  turnaround = rr->time_elapsed - rr->IO_proc_queue->front->procIO->activation_time;
-  printf("Seu turnaround e de: %d\n", turnaround+1);
+  turnaround =
+      rr->time_elapsed - rr->IO_proc_queue->front->procIO->activation_time;
+  printf("Seu turnaround e de: %d\n", turnaround + 1);
   rr->active_io_processes--;
 }
 
@@ -312,7 +318,7 @@ void rr_pass_time_waiting_proc(RoundRobin *rr) {
 
 void rr_run_all_after_preemption(RoundRobin *rr) {
   rr_pass_time_waiting_proc(rr);
-  //rr_run_IO_proc(rr);
+  // rr_run_IO_proc(rr);
   rr_run_proc(rr);
   rr_pass_time(rr);
 }
