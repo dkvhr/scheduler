@@ -61,7 +61,7 @@ typedef struct Process {
   unsigned duration;        // tempo de duracao do proc
   unsigned total_exec;      // tempo total de execucao ate o momento
   unsigned activation_time; // instante de ativacao do proc
-  unsigned remaining_time;  // tempo restante ate o proc finalizar
+  int remaining_time;  // tempo restante ate o proc finalizar
   unsigned end_time;        // instante de finalizacao do proc
   unsigned time_waiting;
   int io_type;        // tipo de IO que o proc esta esperando
@@ -80,7 +80,7 @@ typedef struct ProcessIO {
                        // total)
   int duration;
   int priority; // prioridade que o processo retornara quando terminar esse IO
-  int remaining_time;
+  unsigned remaining_time;
 } ProcessIO;
 
 typedef struct RoundRobin {
@@ -88,10 +88,12 @@ typedef struct RoundRobin {
   int time_elapsed;
   unsigned max_procs;
   unsigned active_processes;
+  unsigned active_io_processes;
   Process *running_procs; // proc rodando atualmente
   ProcessIO *io_running_procs;
   // filas
   NodeHead *new_procs;
+  NodeIOHead *new_io_procs;
   NodeHead *blocked_procs;
   NodeHead *finished_procs;
   NodeHead *high_priority;
@@ -122,5 +124,6 @@ int rr_has_active_processes(RoundRobin *rr);
 void rr_run(RoundRobin *rr);
 void print_queues(RoundRobin *rr);
 void rr_run_all_before_preemption(RoundRobin *rr);
+int io_queue_is_empty(NodeIOHead *queue);
 
 #endif

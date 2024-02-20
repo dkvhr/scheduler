@@ -51,6 +51,8 @@ NodeIOHead *create_node_IO_head(int max_size, int priority) {
 
 int queue_is_empty(NodeHead *queue) { return queue->size == 0; }
 
+int io_queue_is_empty(NodeIOHead *queue) { return queue->size == 0; }
+
 int IOqueue_is_empty(NodeIOHead *queue) { return queue->size == 0; }
 
 int node_head_enqueue(NodeHead *queue, Process *proc) {
