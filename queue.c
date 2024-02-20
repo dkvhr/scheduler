@@ -122,6 +122,32 @@ Process *node_head_dequeue(NodeHead *queue) {
   return tmpp;
 }
 
+// Process *remove_from_queue(NodeHead *queue) {
+//   if (queue_is_empty(queue)) {
+//     queue->front = queue->rear = NULL;
+//     return NULL;
+//   }
+
+//   ProcessNode *r = queue->rear;
+//   ProcessNode *f = queue->front;
+//   r->next_node=f;
+//   queue->front = NULL;
+//   queue->rear = NULL;
+//   return queue;
+//   queue->front = tmp->next_node;
+//   Process *tmpp = tmp->proc;
+//   free(tmp);
+//   if (queue->size == 1)
+//     queue->rear = NULL;
+//   queue->size--;
+//   if (queue_is_empty(queue)) {
+//     queue->front = queue->rear = NULL;
+//     return tmpp;
+//   }
+
+//   return tmpp;
+// }
+
 ProcessIO *IO_node_head_dequeue(NodeIOHead *queue) {
   // remove o primeiro elemento da fila e retorna como Process
   if (IOqueue_is_empty(queue)) {

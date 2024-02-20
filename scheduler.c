@@ -7,7 +7,7 @@
 // Declaracoes de funcoes
 void rr_run_all_before_preemption(RoundRobin *rr);
 
-Process *create_process(IORequest *io_req) {
+Process *create_process() {
   Process *new_proc;
   if ((new_proc = (Process *)malloc(sizeof(Process))) == NULL) {
     fprintf(stderr, "Nao foi possivel alocar memoria");
@@ -16,9 +16,15 @@ Process *create_process(IORequest *io_req) {
   new_proc->priority = 0; // procs novos entram na fila de prioridade alta
   new_proc->status = 0;
   new_proc->total_exec = 0;
-  new_proc->IO_req = io_req;
+  new_proc->IO_req = NULL;
 
   return new_proc;
+}
+
+int getProcessedTime(Process p) { return p.duration - p.remaining_time; }
+
+bool isIORunning(ProcessIO *pos) {
+  return pos->remaining_time > 0 && pos->remaining_time != pos->duration;
 }
 
 ProcessIO *create_IO_proc(int type, int activation_time) {
@@ -46,18 +52,6 @@ ProcessIO *create_IO_proc(int type, int activation_time) {
   return new_proc_IO;
 }
 
-IORequest *create_IO_request(ProcessIO **req, int size) {
-  IORequest *io_req;
-  if ((io_req = (IORequest *)malloc(sizeof(IORequest *))) == NULL) {
-    fprintf(stderr, "Nao foi possivel alocar memoria\n");
-    exit(EXIT_FAILURE);
-  }
-  io_req->request = req;
-  io_req->size = size;
-
-  return io_req;
-}
-
 RoundRobin round_robin_init() {
   RoundRobin rr;
   rr.time_elapsed = 0; // tempo relativo a cada vez que o proc e executado (dps
@@ -71,6 +65,7 @@ RoundRobin round_robin_init() {
   // criando filas de procs e IO
   rr.new_procs = create_node_head(MAX_PROCS, 0);
   rr.new_io_procs = create_node_IO_head(MAX_IO_PROCS, 0);
+  rr.blocked_procs = create_node_head(MAX_IO_PROCS, 1);
   rr.high_priority = create_node_head(MAX_PROCS, 0);
   rr.low_priority = create_node_head(MAX_PROCS, 1);
   rr.IO_queue = (NodeIOHead **)malloc(3 * sizeof(NodeIOHead *));
@@ -120,14 +115,7 @@ void print_queues(RoundRobin *rr) {
   printf("\n");
 }
 
-int rr_running_to_wait(RoundRobin *rr) {
-  // node_IO_head_enqueue(rr_waiting_for_io(rr->running_procs->io_type, rr),
-  //                   rr->running_procs);
-  rr->running_procs->status = 2;
-  rr->running_procs->time_waiting = 0;
-  rr->running_procs = NULL;
-  return 0;
-}
+int rr_running_to_wait(RoundRobin *rr) { return 0; }
 
 void rr_pass_time(RoundRobin *rr) {
   rr->time_elapsed++;
@@ -138,7 +126,6 @@ void rr_pass_time(RoundRobin *rr) {
       printf("O processo %d sofreu preempcao no tempo %d!\n",
              rr->running_procs->pid, rr->time_elapsed);
   }
-  print_queues(rr);
 }
 
 int rr_running_to_ready(RoundRobin *rr) {
@@ -199,59 +186,66 @@ void rr_add_new_proc(RoundRobin *rr) {
 }
 
 void rr_add_new_io_proc(RoundRobin *rr) {
-  printf("is empty %d\n", io_queue_is_empty(rr->new_io_procs));
-  printf("7aa\n");
-  while (!io_queue_is_empty(rr->new_io_procs) &&
-         rr->active_io_processes < MAX_IO_PROCS) {
-    printf("3aa\n");
-    ProcessIO *proc_io = rr->new_io_procs->front->procIO;
-    printf("4aa\n");
-    if (proc_io->activation_time > rr->time_elapsed) {
-      break;
+  if (rr->running_procs == NULL)
+    return;
+  Process *curr_proc = rr->running_procs;
+  for (int n = 0; n < curr_proc->number_of_ios_requests; n++) {
+    ProcessIO *pproc_io = curr_proc->IO_req[n];
+    if (pproc_io->activation_time == getProcessedTime(*curr_proc)) {
+      node_IO_head_enqueue(rr->IO_queue[pproc_io->type], pproc_io);
+      if (pproc_io->type == 0)
+        pproc_io->priority = 1;
+      if (pproc_io->type == 1 || pproc_io->type == 2)
+        pproc_io->priority = 0;
+      rr->active_io_processes++;
+
+      node_head_enqueue(rr->blocked_procs, rr->running_procs);
+      curr_proc->status = 2;
+      curr_proc->time_waiting = 0;
+      rr->running_procs = NULL;
     }
-    printf("5aa\n");
-    node_IO_head_enqueue(rr->IO_queue[proc_io->type], proc_io);
-    if (proc_io->type == 0)
-      proc_io->priority = 1;
-    if (proc_io->type == 1 || proc_io->type == 2)
-      proc_io->priority = 0;
-    printf("6aa\n");
-    IO_node_head_dequeue(rr->new_io_procs);
-    rr->active_io_processes++;
   }
 }
 
 int rr_waiting_to_ready(RoundRobin *rr) {
+  ProcessNode *blocked_procs = rr->blocked_procs->front;
+  while (blocked_procs != NULL) {
+    Process *proc = blocked_procs->proc;
+    for (int b = 0; b < proc->number_of_ios_requests; b++) {
+      int duration, new_priority;
+      switch (proc->io_type) {
+      case 0:
+        duration = 2;
+        new_priority = 1;
+        break;
+      case 1:
+        duration = 4;
+        new_priority = 0;
+        break;
+      case 2:
+        duration = 6;
+        new_priority = 0;
+        break;
+      }
+      if (proc->time_waiting == duration) {
+
+        if (new_priority == 0)
+          node_head_enqueue(rr->high_priority, proc);
+        if (new_priority == 1)
+          node_head_enqueue(rr->low_priority, proc);
+        proc->status = 0;
+        proc->priority = new_priority;
+        node_head_dequeue();
+      }
+    }
+  }
+
   for (int i = 0; i < 3; ++i) {
     NodeHead *waiting_queue = rr->blocked_procs;
     Process *proc;
     if (queue_is_empty(waiting_queue))
       continue;
     proc = waiting_queue->front->proc;
-    int duration, new_priority;
-    switch (proc->io_type) {
-    case 0:
-      duration = 2;
-      new_priority = 1;
-      break;
-    case 1:
-      duration = 4;
-      new_priority = 0;
-      break;
-    case 2:
-      duration = 6;
-      new_priority = 0;
-      break;
-    }
-    if (proc->time_waiting == duration) {
-      if (new_priority == 0)
-        node_head_enqueue(rr->high_priority, proc);
-      if (new_priority == 1)
-        node_head_enqueue(rr->low_priority, proc);
-      proc->status = 0;
-      proc->priority = new_priority;
-      node_head_dequeue(waiting_queue);
-    }
   }
   return 0;
 }
@@ -286,7 +280,7 @@ void rr_io_finish_running_proc(RoundRobin *rr) {
 }
 
 void rr_run_IO_proc(RoundRobin *rr) {
-  if (!rr_is_running_proc(rr))
+  if (!rr_is_running_io_proc(rr))
     return;
   rr->io_running_procs->remaining_time--;
   printf("Processo de IO do tipo %d sendo executado. Tempo restante: %d\n",
@@ -306,6 +300,8 @@ void rr_pass_time_waiting_proc(RoundRobin *rr) {
 }
 
 void rr_run_all_before_preemption(RoundRobin *rr) {
+  rr_add_new_proc(rr);
+  rr_add_new_io_proc(rr);
   rr_waiting_to_ready(rr);
   rr_running_to_ready(rr);
   rr_ready_to_running(rr);
@@ -313,7 +309,7 @@ void rr_run_all_before_preemption(RoundRobin *rr) {
 
 void rr_run_all_after_preemption(RoundRobin *rr) {
   rr_pass_time_waiting_proc(rr);
-  // rr_run_IO_proc(rr);
+  rr_run_IO_proc(rr);
   rr_run_proc(rr);
   rr_pass_time(rr);
 }

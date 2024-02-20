@@ -26,11 +26,6 @@ typedef struct ProcessIONode {
   struct ProcessIONode *next_node;
 } ProcessIONode;
 
-typedef struct IORequest {
-  ProcessIO **request;
-  int size;
-} IORequest;
-
 typedef struct NodeHead {
   int full_size;
   ProcessNode *front;
@@ -65,9 +60,10 @@ typedef struct Process {
   unsigned end_time;        // instante de finalizacao do proc
   unsigned time_waiting;
   int io_type;        // tipo de IO que o proc esta esperando
-  IORequest *IO_req;  // IOs que o proc chama
+  ProcessIO **IO_req; // IOs que o proc chama
   int IO_return_time; // instante que processo retornará do IO que está sendo
                       // executado no momento
+  int number_of_ios_requests;
 } Process;
 
 typedef struct ProcessIO {
@@ -103,7 +99,7 @@ typedef struct RoundRobin {
 } RoundRobin;
 
 // Function declarations
-Process *create_process(IORequest *io_req);
+Process *create_process();
 NodeHead *create_node_head(int max_size, int priority);
 int queue_is_empty(NodeHead *queue);
 ProcessNode *create_process_node(Process *proc);
@@ -113,7 +109,6 @@ Process *node_head_dequeue(NodeHead *queue);
 RoundRobin round_robin_init();
 int rr_check_end_of_processes(RoundRobin *rr, ProcessList *proc_list);
 void rr_next_action(RoundRobin *rr, ProcessList *proc_list);
-IORequest *create_IO_request(ProcessIO **req, int size);
 ProcessIO **create_IO_proc_ptr_ptr(int size);
 NodeIOHead *create_node_IO_head(int max_size, int priority);
 int node_IO_head_enqueue(NodeIOHead *IO_queue, ProcessIO *proc_io);
