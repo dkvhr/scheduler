@@ -32,26 +32,27 @@ int main(void) {
         int activation_time, type;
         fscanf(file, "%d %d", &type, &activation_time);
         ProcessIO *proc_io = create_IO_proc(type, activation_time);
-        switch(proc_io->type) {
-          case 0:
-            proc_io->duration = 2;
-            break;
-          case 1:
-            proc_io->duration = 4;
-            break;
-          case 2:
-            proc_io->duration = 6;
-            break;
+        switch (proc_io->type) {
+        case 0:
+          proc_io->duration = 2;
+          break;
+        case 1:
+          proc_io->duration = 4;
+          break;
+        case 2:
+          proc_io->duration = 6;
+          break;
         }
         proc_io->remaining_time = proc_io->duration;
         proc_io->activation_time += proc->activation_time;
-        node_IO_head_enqueue(rr.IO_proc_queue, proc_io);
+        node_IO_head_enqueue(rr.IO_queue[proc_io->type], proc_io);
       }
     } else if (io_req->size == 0)
       io_req->request = NULL;
 
     proc->IO_req = io_req;
     proc->remaining_time = proc->duration;
+    printf("entrando no clock");
   }
   printf("\n");
 
@@ -59,7 +60,7 @@ int main(void) {
 
   while (rr_has_active_processes(&rr)) {
     rr_run(&rr);
-    //print_queues(&rr);
+    // print_queues(&rr);
   }
 
   return 0;

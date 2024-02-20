@@ -77,7 +77,6 @@ RoundRobin round_robin_init() {
   rr.IO_queue[1] = create_node_IO_head(MAX_PROCS, 0); // Tape
   rr.IO_queue[2] = create_node_IO_head(MAX_PROCS, 0); // Printer
   rr.finished_procs = create_node_head(MAX_PROCS, 0);
-  rr.IO_proc_queue = create_node_IO_head(MAX_IO_PROCS, MAX_IO_PROCS);
 
   return rr;
 }
@@ -109,13 +108,14 @@ void print_queues(RoundRobin *rr) {
     printf("[%d] ", tmp->proc->pid);
     tmp = tmp->next_node;
   }
-  printf("\nA fila de IO se encontra com %d processos. Sendo dos tipos:\n",
-         rr->IO_proc_queue->size);
-  ProcessIONode *io_tmp = rr->IO_proc_queue->front;
-  while (io_tmp != NULL) {
-    printf("%d, ", io_tmp->procIO->type);
-    io_tmp = io_tmp->next_node;
+  int io_queue_size = 0;
+  printf("Temos os seguintes processos: ");
+  for (int i = 0; i < 3; i++) {
+    int s = rr->IO_queue[i]->size;
+    io_queue_size += s;
+    printf("%d,", s);
   }
+  printf("\nA fila de IO se encontra com %d processos\n", io_queue_size);
   printf("\n");
 }
 
@@ -204,7 +204,7 @@ void rr_add_new_io_proc(RoundRobin *rr) {
     if (proc_io->activation_time > rr->time_elapsed) {
       break;
     }
-    node_IO_head_enqueue(rr->IO_proc_queue, proc_io);
+    node_IO_head_enqueue(rr->IO_queue[proc_io->type], proc_io);
     if (proc_io->type == 0)
       proc_io->priority = 1;
     if (proc_io->type == 1 || proc_io->type == 2)
@@ -271,26 +271,20 @@ void rr_run_proc(RoundRobin *rr) {
 }
 
 void rr_io_finish_running_proc(RoundRobin *rr) {
-  printf("BBBB\n");
   int turnaround = 0;
   printf("Processo de IO do tipo %d terminou no tempo %d",
-         rr->IO_proc_queue->front->procIO->type, rr->time_elapsed);
-  IO_node_head_dequeue(rr->IO_proc_queue);
-  rr->IO_proc_queue = NULL;
-  turnaround =
-      rr->time_elapsed - rr->IO_proc_queue->front->procIO->activation_time;
-  printf("Seu turnaround e de: %d\n", turnaround + 1);
+         rr->io_running_procs->type, rr->time_elapsed);
+  IO_node_head_dequeue(rr->IO_queue[rr->io_running_procs->type]);
   rr->active_io_processes--;
 }
 
 void rr_run_IO_proc(RoundRobin *rr) {
   if (!rr_is_running_proc(rr))
     return;
-  rr->IO_proc_queue->front->procIO->remaining_time--;
+  rr->io_running_procs->remaining_time--;
   printf("Processo de IO do tipo %d sendo executado. Tempo restante: %d\n",
-         rr->IO_proc_queue->front->procIO->type,
-         rr->IO_proc_queue->front->procIO->remaining_time);
-  if (!rr->IO_proc_queue->front->procIO->remaining_time) {
+         rr->io_running_procs->type, rr->io_running_procs->type);
+  if (!rr->io_running_procs->type) {
     rr_io_finish_running_proc(rr);
   }
 }
