@@ -77,7 +77,9 @@ RoundRobin round_robin_init() {
   rr.quantum = 0;
   rr.max_procs = MAX_PROCS;
   rr.active_processes = 0;
+  rr.active_io_processes = 0;
   rr.running_procs = NULL;
+  rr.io_running_procs = NULL;
   // criando filas de procs e IO
   rr.new_procs = create_node_head(MAX_PROCS, 0);
   rr.high_priority = create_node_head(MAX_PROCS, 0);
@@ -94,7 +96,11 @@ RoundRobin round_robin_init() {
 
 int rr_is_running_proc(RoundRobin *rr) { return rr->running_procs != NULL; }
 
+int rr_is_running_io_proc(RoundRobin *rr) { return rr->io_running_procs != NULL; }
+
 int rr_has_active_processes(RoundRobin *rr) { return rr->active_processes > 0; }
+
+int rr_has_active_io_processes(RoundRobin *rr) { return rr->active_io_processes > 0; }
 
 int rr_start_quantum(RoundRobin *rr) { return rr->quantum == 0; }
 
@@ -130,16 +136,6 @@ int rr_running_to_wait(RoundRobin *rr) {
   return 0;
 }
 
-void rr_finish_running_proc(RoundRobin *rr) {
-  int turnaround = 0;
-  node_head_enqueue(rr->finished_procs, rr->running_procs);
-  rr->running_procs->status = 3;
-  rr->running_procs = NULL;
-  turnaround = rr->time_elapsed - rr->running_procs->arrival_time;
-  printf("O processo [%d] terminou!\n", rr->running_procs->pid);
-  printf("Seu turnaround e de: %d\n", turnaround);
-  rr->active_processes--;
-}
 
 void rr_pass_time(RoundRobin *rr) {
   rr->time_elapsed++;
@@ -156,7 +152,7 @@ int rr_running_to_ready(RoundRobin *rr) {
   if (!rr_is_running_proc(rr))
     return 1;
   if (!rr_start_quantum(rr))
-    return 1;
+    rr->quantum = 0;
   int new_priority = 1;
   rr->running_procs->priority = new_priority;
   node_head_enqueue(rr->low_priority, rr->running_procs);
@@ -196,13 +192,9 @@ int rr_ready_to_running(RoundRobin *rr) {
 }
 
 void rr_add_new_proc(RoundRobin *rr) {
-  printf("DEBUG\n");
   while (!queue_is_empty(rr->new_procs) && rr->active_processes < MAX_PROCS) {
     Process *proc = rr->new_procs->front->proc;
-    printf("debug\n");
-    printf("arrival time e de %d e o time elapsed e de %d\n", proc->arrival_time, rr->time_elapsed);
     if(proc->arrival_time > rr->time_elapsed) {
-      printf("deb\n");
       break;
     }
     node_head_enqueue(rr->high_priority, proc);
@@ -210,6 +202,22 @@ void rr_add_new_proc(RoundRobin *rr) {
     proc->priority = 0;
     node_head_dequeue(rr->new_procs);
     rr->active_processes++;
+  }
+}
+
+void rr_add_new_io_proc(RoundRobin *rr) {
+  while (!io_queue_is_empty(rr->new_io_procs) && rr->active_io_processes < MAX_IO_PROCS) {
+    ProcessIO *proc_io = rr->new_io_procs->front->procIO;
+    if(proc_io->activation_time > rr->time_elapsed) {
+      break;
+    }
+    node_IO_head_enqueue(rr->IO_proc_queue, proc_io);
+    if(proc_io->type == 0)
+      proc_io->priority = 1;
+    if(proc_io->type == 1 || proc_io->type == 2)
+      proc_io->priority = 0;
+    IO_node_head_dequeue(rr->new_io_procs);
+    rr->active_io_processes++;
   }
 }
 
@@ -248,25 +256,37 @@ int rr_waiting_to_ready(RoundRobin *rr) {
   return 0;
 }
 
+void rr_finish_running_proc(RoundRobin *rr) {
+  int turnaround = 0;
+  node_head_enqueue(rr->finished_procs, rr->running_procs);
+  rr->running_procs->status = 3;
+  turnaround = rr->time_elapsed - rr->running_procs->arrival_time;
+  printf("O processo [%d] terminou!\n", rr->running_procs->pid);
+  rr->running_procs = NULL;
+  printf("Seu turnaround e de: %d\n", turnaround);
+  rr->active_processes--;
+}
+
 void rr_run_proc(RoundRobin *rr) {
   if (!rr_is_running_proc(rr))
     return;
   rr->running_procs->remaining_time--;
   printf("\nProcesso [%d] sendo executado. Tempo restante: %d\n",
          rr->running_procs->pid, rr->running_procs->remaining_time);
-  if (rr->running_procs->remaining_time == 0)
+  if (!rr->running_procs->remaining_time)
     rr_finish_running_proc(rr);
 }
 
 void rr_io_finish_running_proc(RoundRobin *rr) {
+  printf("BBBB\n");
   int turnaround = 0;
   printf("Processo de IO do tipo %d terminou no tempo %d",
-         rr->io_running_procs->type, rr->time_elapsed);
+         rr->IO_proc_queue->front->procIO->type, rr->time_elapsed);
   IO_node_head_dequeue(rr->IO_proc_queue);
-  rr->io_running_procs = NULL;
-  turnaround = rr->time_elapsed - rr->io_running_procs->activation_time;
+  rr->IO_proc_queue = NULL;
+  turnaround = rr->time_elapsed - rr->IO_proc_queue->front->procIO->activation_time;
   printf("Seu turnaround e de: %d\n", turnaround);
-  rr->active_processes--;
+  rr->active_io_processes--;
 }
 
 void rr_run_IO_proc(RoundRobin *rr) {
@@ -276,8 +296,9 @@ void rr_run_IO_proc(RoundRobin *rr) {
   printf("Processo de IO do tipo %d sendo executado. Tempo restante: %d\n",
          rr->IO_proc_queue->front->procIO->type,
          rr->IO_proc_queue->front->procIO->remaining_time);
-  if (rr->IO_proc_queue->front->procIO->remaining_time == 0)
+  if (!rr->IO_proc_queue->front->procIO->remaining_time) {
     rr_io_finish_running_proc(rr);
+  }
 }
 
 void rr_pass_time_waiting_proc(RoundRobin *rr) {
@@ -291,6 +312,7 @@ void rr_pass_time_waiting_proc(RoundRobin *rr) {
 
 void rr_run_all_after_preemption(RoundRobin *rr) {
   rr_pass_time_waiting_proc(rr);
+  //rr_run_IO_proc(rr);
   rr_run_proc(rr);
   rr_pass_time(rr);
 }
