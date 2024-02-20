@@ -99,31 +99,25 @@ int rr_has_active_processes(RoundRobin *rr) { return rr->active_processes > 0; }
 int rr_start_quantum(RoundRobin *rr) { return rr->quantum == 0; }
 
 void print_queues(RoundRobin *rr) {
-  ProcessNode *tmp = (ProcessNode *)malloc(sizeof(ProcessNode));
-  if (tmp == NULL) {
-    fprintf(stderr, "Erro ao alocar memoria\n");
-    exit(EXIT_FAILURE);
-  }
   printf("A fila de alta prioridade contem os processos:\n");
-  tmp = rr->high_priority->front;
+  ProcessNode *tmp = rr->high_priority->front;
   while (tmp != NULL) {
     printf("[%d] ", tmp->proc->pid);
     tmp = tmp->next_node;
   }
-  printf("\n\nA fila de baixa prioridade contem os processos:\n");
+  printf("\nA fila de baixa prioridade contem os processos:\n");
   tmp = rr->low_priority->front;
   while (tmp != NULL) {
     printf("[%d] ", tmp->proc->pid);
     tmp = tmp->next_node;
   }
-  printf("\n\n");
-  printf("A fila de IO se encontra com %d processos. Sendo dos tipos:\n",
+  printf("\nA fila de IO se encontra com %d processos. Sendo dos tipos:\n",
          rr->IO_proc_queue->size);
-  // ProcessIONode *io_tmp = rr->IO_proc_queue->front;
-  // while (io_tmp != NULL) {
-  //   io_tmp = io_tmp->next_node;
-  //   printf("%d, ", io_tmp->procIO->type);
-  // }
+  ProcessIONode *io_tmp = rr->IO_proc_queue->front;
+  while (io_tmp != NULL) {
+    printf("%d, ", io_tmp->procIO->type);
+    io_tmp = io_tmp->next_node;
+  }
   printf("\n");
 }
 
