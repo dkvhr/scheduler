@@ -40,6 +40,7 @@ int main(void) {
     proc->IO_req = io_req;
     proc->remaining_time = proc->duration;
   }
+  printf("\n");
 
   rr_run_all_before_preemption(&rr);
 
@@ -52,8 +53,10 @@ int main(void) {
 }
 
 void start_screen() {
+  printf("**********");
   printf("\n\nRound Robin com feedback\n");
-  printf("Autores: Abid Lohan, Davi Gomes, João Schmidt\n");
+  printf("Autores: Abid Lohan, Davi Gomes, João Schmidt\n\n");
+  printf("**********");
   printf("\n\nQuantum escolhido: %d\n", QUANTUM);
   printf("Numero maximo de procs: %d\n", MAX_PROCS);
 }

@@ -99,13 +99,13 @@ int rr_has_active_processes(RoundRobin *rr) { return rr->active_processes > 0; }
 int rr_start_quantum(RoundRobin *rr) { return rr->quantum == 0; }
 
 void print_queues(RoundRobin *rr) {
-  printf("A fila de alta prioridade contem os processos:\n");
+  printf("\nA fila de alta prioridade contem os processos:\n");
   ProcessNode *tmp = rr->high_priority->front;
   while (tmp != NULL) {
     printf("[%d] ", tmp->proc->pid);
     tmp = tmp->next_node;
   }
-  printf("\nA fila de baixa prioridade contem os processos:\n");
+  printf("\n\nA fila de baixa prioridade contem os processos:\n");
   tmp = rr->low_priority->front;
   while (tmp != NULL) {
     printf("[%d] ", tmp->proc->pid);
@@ -244,7 +244,7 @@ void rr_run_proc(RoundRobin *rr) {
   if (!rr_is_running_proc(rr))
     return;
   rr->running_procs->remaining_time--;
-  printf("Processo [%d] sendo executado. Tempo restante: %d\n",
+  printf("\nProcesso [%d] sendo executado. Tempo restante: %d\n",
          rr->running_procs->pid, rr->running_procs->remaining_time);
   if (rr->running_procs->remaining_time == 0)
     rr_finish_running_proc(rr);
