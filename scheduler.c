@@ -140,7 +140,7 @@ int rr_running_to_wait(RoundRobin *rr) {
 void rr_pass_time(RoundRobin *rr) {
   rr->time_elapsed++;
   rr->quantum++;
-  if (rr->quantum == QUANTUM) {
+  if (rr->quantum == QUANTUM && rr->running_procs != NULL) {
     rr->quantum = 0; // reseta e sofre preempcao
     printf("O processo %d sofreu preempcao no tempo %d!\n",
            rr->running_procs->pid, rr->time_elapsed);
@@ -152,7 +152,7 @@ int rr_running_to_ready(RoundRobin *rr) {
   if (!rr_is_running_proc(rr))
     return 1;
   if (!rr_start_quantum(rr))
-    rr->quantum = 0;
+    return 1;
   int new_priority = 1;
   rr->running_procs->priority = new_priority;
   node_head_enqueue(rr->low_priority, rr->running_procs);
@@ -174,7 +174,7 @@ int rr_ready_to_running(RoundRobin *rr) {
   if (rr_is_running_proc(rr))
     return 1;
   if (rr_start_quantum(rr))
-    return 1;
+    rr->quantum = 0;
   priority = rr_best_process(rr);
   if (priority == 2)
     return 1;
@@ -263,7 +263,7 @@ void rr_finish_running_proc(RoundRobin *rr) {
   turnaround = rr->time_elapsed - rr->running_procs->arrival_time;
   printf("O processo [%d] terminou!\n", rr->running_procs->pid);
   rr->running_procs = NULL;
-  printf("Seu turnaround e de: %d\n", turnaround);
+  printf("Seu turnaround e de: %d\n", turnaround+1);
   rr->active_processes--;
 }
 
@@ -285,7 +285,7 @@ void rr_io_finish_running_proc(RoundRobin *rr) {
   IO_node_head_dequeue(rr->IO_proc_queue);
   rr->IO_proc_queue = NULL;
   turnaround = rr->time_elapsed - rr->IO_proc_queue->front->procIO->activation_time;
-  printf("Seu turnaround e de: %d\n", turnaround);
+  printf("Seu turnaround e de: %d\n", turnaround+1);
   rr->active_io_processes--;
 }
 
