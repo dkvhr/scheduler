@@ -32,6 +32,19 @@ int main(void) {
         int activation_time, type;
         fscanf(file, "%d %d", &type, &activation_time);
         ProcessIO *proc_io = create_IO_proc(type, activation_time);
+        switch(proc_io->type) {
+          case 0:
+            proc_io->duration = 2;
+            break;
+          case 1:
+            proc_io->duration = 4;
+            break;
+          case 2:
+            proc_io->duration = 6;
+            break;
+        }
+        proc_io->remaining_time = proc_io->duration;
+        proc_io->activation_time += proc->activation_time;
         node_IO_head_enqueue(rr.IO_proc_queue, proc_io);
       }
     } else if (io_req->size == 0)
