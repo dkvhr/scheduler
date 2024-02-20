@@ -58,8 +58,9 @@ int main(void) {
   rr_run_all_before_preemption(&rr);
 
   while (rr_has_active_processes(&rr)) {
+    printf("Tempo atual no escalonador: %d\n", rr.time_elapsed);
     rr_run(&rr);
-    //print_queues(&rr);
+    print_queues(&rr);
   }
 
   return 0;

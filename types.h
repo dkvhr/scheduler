@@ -7,7 +7,7 @@ typedef struct ProcessIO ProcessIO;
 
 #define MAX_PROCS 1024
 #define MAX_IO_PROCS 1024
-#define QUANTUM 4
+#define QUANTUM 1
 
 // Tempos de E/S
 #define DISK_TIME 2

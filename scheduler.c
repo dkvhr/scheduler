@@ -140,12 +140,13 @@ int rr_running_to_wait(RoundRobin *rr) {
 void rr_pass_time(RoundRobin *rr) {
   rr->time_elapsed++;
   rr->quantum++;
-  if (rr->quantum == QUANTUM && rr->running_procs != NULL) {
+  if (rr->quantum == QUANTUM) {
     rr->quantum = 0; // reseta e sofre preempcao
-    printf("O processo %d sofreu preempcao no tempo %d!\n",
+    if(rr->running_procs != NULL)
+        printf("O processo %d sofreu preempcao no tempo %d!\n",
            rr->running_procs->pid, rr->time_elapsed);
   }
-  print_queues(rr);
+  //print_queues(rr);
 }
 
 int rr_running_to_ready(RoundRobin *rr) {

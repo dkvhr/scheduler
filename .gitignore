@@ -1,3 +1,6 @@
 *.out
 *.o
 .gitignore
+.gdb_history
+.editorconfig
+.vscode
