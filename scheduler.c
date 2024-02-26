@@ -115,8 +115,6 @@ void print_queues(RoundRobin *rr) {
   printf("\n");
 }
 
-int rr_running_to_wait(RoundRobin *rr) { return 0; }
-
 void rr_pass_time(RoundRobin *rr) {
   rr->time_elapsed++;
   rr->quantum++;
@@ -207,7 +205,7 @@ void rr_add_new_io_proc(RoundRobin *rr) {
   }
 }
 
-int rr_waiting_to_ready(RoundRobin *rr) {
+void rr_waiting_to_ready(RoundRobin *rr) {
   ProcessNode *blocked_procs = rr->blocked_procs->front;
   while (blocked_procs != NULL) {
     Process *proc = blocked_procs->proc;
@@ -235,11 +233,12 @@ int rr_waiting_to_ready(RoundRobin *rr) {
           node_head_enqueue(rr->low_priority, proc);
         proc->status = 0;
         proc->priority = new_priority;
-        node_head_dequeue();
+        node_head_dequeue(rr->blocked_procs);
       }
     }
   }
 
+/*
   for (int i = 0; i < 3; ++i) {
     NodeHead *waiting_queue = rr->blocked_procs;
     Process *proc;
@@ -248,7 +247,9 @@ int rr_waiting_to_ready(RoundRobin *rr) {
     proc = waiting_queue->front->proc;
   }
   return 0;
+*/
 }
+
 
 void rr_finish_running_proc(RoundRobin *rr) {
   int turnaround = 0;
@@ -272,9 +273,11 @@ void rr_run_proc(RoundRobin *rr) {
 }
 
 void rr_io_finish_running_proc(RoundRobin *rr) {
-  int turnaround = 0;
-  printf("Processo de IO do tipo %d terminou no tempo %d",
+  int turnaround;
+  turnaround = rr->time_elapsed - rr->io_running_procs->activation_time;
+  printf("Processo de IO do tipo %d terminou no tempo %d\n",
          rr->io_running_procs->type, rr->time_elapsed);
+  printf("Tempo de turnaround: %d\n", turnaround);
   IO_node_head_dequeue(rr->IO_queue[rr->io_running_procs->type]);
   rr->active_io_processes--;
 }

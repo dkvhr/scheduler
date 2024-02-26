@@ -59,13 +59,10 @@ int main(void) {
   }
   printf("\n");
 
-  printf("1aa\n");
   // rr_add_new_proc(&rr);
-  printf("2aa\n");
   // rr_add_new_io_proc(&rr);
   rr_run_all_before_preemption(&rr);
 
-  printf("3aa\n");
   while (rr_has_active_processes(&rr)) {
     printf("Tempo: %d\n", rr.time_elapsed + 1);
     rr_run(&rr);
